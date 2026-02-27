@@ -1,22 +1,27 @@
 <script lang="ts">
-    import { tgTheme } from "$lib/stores/telegram";
+    import { onMount } from "svelte";
 
-    $: theme = $tgTheme;
+    onMount(() => {
+        const tg = window.Telegram?.WebApp;
+        if (!tg) return;
 
-    $: if (typeof document !== "undefined") {
-        const root = document.documentElement;
+        const applyTheme = () => {
+            const p = tg.themeParams;
 
-        if (theme.bgColor) root.style.setProperty("--tg-bg", theme.bgColor);
-        if (theme.textColor) root.style.setProperty("--tg-text", theme.textColor);
-        if (theme.hintColor) root.style.setProperty("--tg-hint", theme.hintColor);
-        if (theme.linkColor) root.style.setProperty("--tg-link", theme.linkColor);
-        if (theme.buttonColor) root.style.setProperty("--tg-btn", theme.buttonColor);
-        if (theme.buttonTextColor) root.style.setProperty("--tg-btn-text", theme.buttonTextColor);
+            const root = document.documentElement;
 
-        // если потом будешь использовать Tailwind dark:
-        if (theme.colorScheme === "dark") root.classList.add("dark");
-        else root.classList.remove("dark");
-    }
+            root.style.setProperty("--tg-bg", p.bg_color);
+            root.style.setProperty("--tg-secondary-bg", p.secondary_bg_color);
+            root.style.setProperty("--tg-text", p.text_color);
+            root.style.setProperty("--tg-hint", p.hint_color);
+            root.style.setProperty("--tg-link", p.link_color);
+            root.style.setProperty("--tg-button", p.button_color);
+            root.style.setProperty("--tg-button-text", p.button_text_color);
+        };
+
+        applyTheme();
+        tg.onEvent("themeChanged", applyTheme);
+    });
 </script>
 
 <!-- Ничего не рендерим -->

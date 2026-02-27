@@ -1,3 +1,64 @@
+<script lang="ts">
+    import { onMount } from "svelte";
+    import { goto } from "$app/navigation";
+    import { tgUser } from "$lib/stores/telegram";
+
+    let open = false;
+
+    // время — локальное, можно потом заменить на серверное/биржевое
+    let timeStr = "";
+    let tzStr = "";
+
+    function tick() {
+        const d = new Date();
+        const hh = String(d.getHours()).padStart(2, "0");
+        const mm = String(d.getMinutes()).padStart(2, "0");
+        timeStr = `${hh}:${mm}`;
+
+        const offsetMin = -d.getTimezoneOffset(); // например +180
+        const sign = offsetMin >= 0 ? "+" : "-";
+        const h = String(Math.floor(Math.abs(offsetMin) / 60)).padStart(2, "0");
+        const m = String(Math.abs(offsetMin) % 60).padStart(2, "0");
+        tzStr = `UTC${sign}${h}${m === "00" ? "" : ":" + m}`;
+    }
+
+    function close() {
+        open = false;
+    }
+
+    onMount(() => {
+        tick();
+        const id = setInterval(tick, 1000 * 10);
+        const onDoc = (e: MouseEvent) => {
+            const target = e.target as HTMLElement;
+            // закрываем по клику вне меню
+            if (!target.closest?.("[data-avatar-root]")) open = false;
+        };
+        document.addEventListener("click", onDoc);
+
+        return () => {
+            clearInterval(id);
+            document.removeEventListener("click", onDoc);
+        };
+    });
+
+    function initials(u: any) {
+        const a = (u?.first_name?.[0] ?? "").toUpperCase();
+        const b = (u?.last_name?.[0] ?? "").toUpperCase();
+        return (a + b) || "?";
+    }
+
+    function goProfile() {
+        close();
+        goto("/profile");
+    }
+
+    function goSettings() {
+        close();
+        goto("/settings");
+    }
+</script>
+
 <header class="topbar">
     <div class="left">
         <div class="title">Trade Bot</div>
