@@ -3,8 +3,10 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 RUN npm i -g npm@11.11.0
+RUN npm config set registry https://registry.npmjs.org/
 
 COPY package.json package-lock.json ./
+# если вдруг .npmrc попадёт позже — не страшно, но лучше не копировать его вообще
 RUN npm ci --no-audit --no-fund
 
 COPY . .
@@ -19,12 +21,12 @@ ENV HOST=0.0.0.0
 ENV PORT=3000
 
 RUN npm i -g npm@11.11.0
+RUN npm config set registry https://registry.npmjs.org/
 
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev --no-audit --no-fund
 
-# SvelteKit adapter-node output:
 COPY --from=build /app/build ./build
 
 EXPOSE 3000
-CMD ["node", "build"]
+CMD ["node", "build"]npm config set registry https://registry.npmjs.org/
