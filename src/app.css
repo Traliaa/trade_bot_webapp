@@ -1,0 +1,19 @@
+:root {
+    --tg-bg: #ffffff;
+    --tg-text: #111827;
+    --tg-hint: #6b7280;
+    --tg-link: #3b82f6;
+    --tg-btn: #3b82f6;
+    --tg-btn-text: #ffffff;
+}
+
+html,
+body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    background: var(--tg-bg);
+    color: var(--tg-text);
+}
