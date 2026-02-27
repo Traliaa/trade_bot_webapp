@@ -6,11 +6,12 @@ RUN npm i -g npm@11.11.0
 RUN npm config set registry https://registry.npmjs.org/
 
 COPY package.json package-lock.json ./
-# если вдруг .npmrc попадёт позже — не страшно, но лучше не копировать его вообще
 RUN npm ci --no-audit --no-fund
 
 COPY . .
-RUN npm run build
+
+# build через npx (гарантирует правильный бинарь)
+RUN npx svelte-kit build
 
 # --- run stage ---
 FROM node:22-alpine AS run
@@ -29,4 +30,4 @@ RUN npm ci --omit=dev --no-audit --no-fund
 COPY --from=build /app/build ./build
 
 EXPOSE 3000
-CMD ["node", "build"]npm config set registry https://registry.npmjs.org/
+CMD ["node", "build"]
