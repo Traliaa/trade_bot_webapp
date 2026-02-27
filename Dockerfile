@@ -1,4 +1,3 @@
-# --- build ---
 FROM node:22-alpine AS build
 WORKDIR /app
 
@@ -9,10 +8,15 @@ COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 
 COPY . .
+
+# генерим .svelte-kit/tsconfig.json
+RUN npx svelte-kit sync
+
+# теперь сборка (adapter-static даст dist/)
 RUN npm run build
 
-# --- run ---
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
+
 EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
