@@ -123,6 +123,8 @@
 {:else}
     <ActiveDealsList {deals} />
 {/if}
+
+<!-- DEBUG PANEL -->
 <div style="color: var(--tg-hint); font-size: 12px;">
     DEV: {String(import.meta.env.DEV)} |
     PUBLIC_DEV_USER_ID: {import.meta.env.PUBLIC_DEV_USER_ID ?? "—"}
@@ -130,7 +132,6 @@
 <div style="color: var(--tg-hint); font-size: 12px;">
     DEV: {String(import.meta.env.DEV)} | DEV_USER_ID: {DEV_USER_ID || "—"}
 </div>
-<!-- DEBUG PANEL -->
 <section class="dbg">
     <div class="dbgHead">
         <div class="dbgTitle">Debug API</div>
