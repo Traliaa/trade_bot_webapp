@@ -1,13 +1,13 @@
 import { token } from "$lib/stores/auth";
 
-const API_BASE = import.meta.env.PUBLIC_API_BASE || "http://localhost:8080";
+const API_BASE = import.meta.env.PUBLIC_API_BASE || "https://api.trade.bot.etk3.xyz";
 
 let tokenValue: string | null = null;
 token.subscribe((v) => (tokenValue = v));
 
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
     const headers = new Headers(init?.headers ?? {});
-    if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+    if (!headers.has("Content-Type") && init?.body) headers.set("Content-Type", "application/json");
     if (tokenValue) headers.set("Authorization", `Bearer ${tokenValue}`);
 
     const resp = await fetch(`${API_BASE}${path}`, { ...init, headers });
