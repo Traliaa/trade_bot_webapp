@@ -1,5 +1,6 @@
 import { writable } from "svelte/store";
 import { getTelegram, getUnsafeUser, type TgWebApp } from "$lib/telegram";
+import { DEV_USER_ID } from "$lib/env/public";
 
 export const tg = writable<TgWebApp | null>(null);
 export const tgUser = writable<any | null>(null);
@@ -32,6 +33,9 @@ function readTheme(app: TgWebApp) {
 export function initTelegram() {
     const app = getTelegram();
     if (!app) {
+        if (import.meta.env.DEV && DEV_USER_ID) {
+            tgUser.set({ id: DEV_USER_ID, first_name: "DEV", last_name: "USER", username: "dev" });
+        }
         tgReady.set(true);
         return;
     }

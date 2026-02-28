@@ -2,14 +2,19 @@
     import TopBar from "$lib/components/TopBar.svelte";
     import { page } from "$app/stores";
     import { goto } from "$app/navigation";
+    import { tgUser } from "$lib/stores/telegram";
+    import { isAdminUserId } from "$lib/auth/admin";
 
-    const tabs = [
-        { href: "/", label: "Сделки" },      // главный = активные сделки
-        { href: "/trades", label: "История" },
-        { href: "/settings", label: "Настройки" },
+    $: admin = isAdminUserId($tgUser?.id);
+
+    const baseTabs = [
+        { href: "/", label: "Сделки" },
         { href: "/partial", label: "Partial" },
-        { href: "/pro", label: "PRO" }
+        { href: "/pro", label: "PRO" },
+        { href: "/settings", label: "Настройки" }
     ];
+
+    $: tabs = admin ? [...baseTabs, { href: "/admin", label: "Админ" }] : baseTabs;
 
     $: path = $page.url.pathname;
     function isActive(href: string) {
@@ -17,27 +22,84 @@
     }
 </script>
 
-<div class="min-h-screen flex flex-col">
+<div class="app">
     <TopBar />
 
-    <main class="flex-1 px-4 py-4">
+    <!-- главная рабочая поверхность -->
+    <main class="surface">
         <slot />
     </main>
 
-    <nav class="px-2 py-2 border-t" style="border-color: rgba(0,0,0,0.08);">
-        <div class="grid grid-cols-5 gap-1">
+    <!-- нижняя панель тоже на secondary_bg, а не с "черным rgba" -->
+    <nav class="tabbar">
+        <div class="tabs">
             {#each tabs as t}
                 <button
-                        class="py-2 rounded-xl text-xs"
-                        style="
-						background: {isActive(t.href) ? 'rgba(0,0,0,0.06)' : 'transparent'};
-						color: {isActive(t.href) ? 'var(--tg-text)' : 'var(--tg-hint)'};
-					"
+                        class="tab"
+                        class:active={isActive(t.href)}
                         on:click={() => goto(t.href)}
                 >
                     {t.label}
                 </button>
             {/each}
         </div>
+        <div class="tabbar-safe" />
     </nav>
 </div>
+
+<style>
+    .app {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+
+        background: var(--tg-bg);
+        color: var(--tg-text);
+    }
+
+    /* Surface: основной слой контента */
+    .surface {
+        flex: 1;
+        background: var(--tg-secondary-bg);
+
+        padding: 16px;
+        /* чтобы контент не залезал под таббар */
+        padding-bottom: 84px;
+    }
+
+    /* Tabbar: фиксируем визуально как нижний слой */
+    .tabbar {
+        background: var(--tg-secondary-bg);
+        border-top: 1px solid var(--tg-hint);
+        padding: 8px 8px 0;
+    }
+
+    .tabs {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: 1fr;
+        gap: 6px;
+    }
+
+    .tab {
+        padding: 10px 8px;
+        border-radius: 14px;
+        font-size: 12px;
+        line-height: 1;
+
+        background: transparent;
+        color: var(--tg-hint);
+        border: 1px solid transparent;
+    }
+
+    .tab.active {
+        background: var(--tg-bg);
+        color: var(--tg-text);
+        border-color: var(--tg-hint);
+    }
+
+    /* Safe area снизу (iPhone) */
+    .tabbar-safe {
+        height: env(safe-area-inset-bottom);
+    }
+</style>

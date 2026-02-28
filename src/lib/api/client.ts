@@ -1,20 +1,44 @@
 import { token } from "$lib/stores/auth";
 
-const API_BASE = import.meta.env.PUBLIC_API_BASE || "https://api.trade.bot.etk3.xyz";
 
 let tokenValue: string | null = null;
 token.subscribe((v) => (tokenValue = v));
 
-export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-    const headers = new Headers(init?.headers ?? {});
-    if (!headers.has("Content-Type") && init?.body) headers.set("Content-Type", "application/json");
-    if (tokenValue) headers.set("Authorization", `Bearer ${tokenValue}`);
+type ApiOptions = Omit<RequestInit, "headers"> & {
+    headers?: Record<string, string>;
+};
 
-    const resp = await fetch(`${API_BASE}${path}`, { ...init, headers });
-    if (!resp.ok) {
-        const txt = await resp.text();
-        throw new Error(txt || `HTTP ${resp.status}`);
+// Универсальный api<T>()
+export async function api<T>(path: string, opts: ApiOptions = {}): Promise<T> {
+    const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        ...(opts.headers ?? {})
+    };
+
+    // ВАЖНО: передаём initData (только в браузере)
+    if (typeof window !== "undefined") {
+        const initData = window.Telegram?.WebApp?.initData;
+        if (initData) headers["X-Tg-Init-Data"] = initData;
     }
-    if (resp.status === 204) return undefined as T;
-    return (await resp.json()) as T;
+
+    const res = await fetch(path, {
+        ...opts,
+        headers,
+        // ВАЖНО: чтобы cookie-сессия (если есть) отправлялась
+        credentials: "include",
+    });
+
+    // попробуем распарсить тело всегда
+    const text = await res.text();
+    let data: any = null;
+    try { data = text ? JSON.parse(text) : null; } catch { data = text; }
+
+    if (!res.ok) {
+        const msg = typeof data === "string"
+            ? data
+            : (data?.error ?? data?.message ?? `HTTP ${res.status}`);
+        throw new Error(msg);
+    }
+
+    return data as T;
 }

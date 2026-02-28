@@ -10,13 +10,15 @@
 
             const root = document.documentElement;
 
-            root.style.setProperty("--tg-bg", p.bg_color);
-            root.style.setProperty("--tg-secondary-bg", p.secondary_bg_color);
-            root.style.setProperty("--tg-text", p.text_color);
-            root.style.setProperty("--tg-hint", p.hint_color);
-            root.style.setProperty("--tg-link", p.link_color);
-            root.style.setProperty("--tg-button", p.button_color);
-            root.style.setProperty("--tg-button-text", p.button_text_color);
+            if (!tg && import.meta.env.DEV) {
+                const root = document.documentElement;
+                root.style.setProperty("--tg-bg", "#0b1220");
+                root.style.setProperty("--tg-secondary-bg", "#101a2d");
+                root.style.setProperty("--tg-text", "#ffffff");
+                root.style.setProperty("--tg-hint", "rgba(255,255,255,.55)");
+                root.style.setProperty("--tg-button", "#2ea6ff");
+                root.style.setProperty("--tg-button-text", "#ffffff");
+            }
         };
 
         applyTheme();
