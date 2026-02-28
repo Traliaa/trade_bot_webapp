@@ -13,6 +13,17 @@ COPY . .
 # если без этого падает tsc/vite - оставляем
 RUN npx svelte-kit sync
 
+
+# 👇 прокидываем PUBLIC_* в build-time
+ARG PUBLIC_API_BASE
+ARG PUBLIC_ADMIN_CHAT_ID
+ARG PUBLIC_DEV_USER_ID
+
+ENV PUBLIC_API_BASE=$PUBLIC_API_BASE
+ENV PUBLIC_ADMIN_CHAT_ID=$PUBLIC_ADMIN_CHAT_ID
+ENV PUBLIC_DEV_USER_ID=$PUBLIC_DEV_USER_ID
+
+
 # vite build -> dist/
 RUN npm run build
 

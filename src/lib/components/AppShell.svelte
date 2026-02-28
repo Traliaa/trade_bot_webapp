@@ -43,7 +43,7 @@
                 </button>
             {/each}
         </div>
-        <div class="tabbar-safe" />
+        <div class="tabbar-safe"></div>
     </nav>
 </div>
 
