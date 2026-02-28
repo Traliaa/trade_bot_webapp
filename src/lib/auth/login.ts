@@ -1,6 +1,6 @@
-import { getInitData } from "$lib/telegram";
+import { getInitData, getUnsafeUser } from "$lib/telegram";
 import { api } from "$lib/api/client";
-import { token, authed, authError } from "$lib/stores/auth";
+import { token, authed, authError, me } from "$lib/stores/auth";
 
 export async function loginViaTelegram() {
     authError.set(null);
@@ -20,6 +20,9 @@ export async function loginViaTelegram() {
 
         token.set(res.token);
         authed.set(true);
+
+        // локально заполним инфу о пользователе из Telegram
+        me.set(getUnsafeUser());
     } catch (e: any) {
         authed.set(false);
         authError.set(e?.message ?? String(e));
