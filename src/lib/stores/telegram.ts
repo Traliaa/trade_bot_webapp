@@ -11,35 +11,28 @@ export const tgDebug = writable<any>({});
 export function initTelegram() {
     const app = getTelegram();
 
-    // сохраним состояние чтобы видеть, что реально есть
-    tgDebug.set({
-        hasWindow: typeof window !== "undefined",
-        hasTelegram: typeof window !== "undefined" ? Boolean((window as any).Telegram) : false,
+    const debug = {
         hasWebApp: Boolean(app),
         initDataLen: app?.initData?.length ?? 0,
-        initDataUnsafeKeys: app?.initDataUnsafe ? Object.keys(app.initDataUnsafe) : [],
-        userPresent: Boolean(app?.initDataUnsafe?.user),
-        platform: app?.platform,
-        version: app?.version,
-    });
+        initData: app?.initData ?? "",
+        initDataUnsafe: app?.initDataUnsafe ?? null,
+        user: app?.initDataUnsafe?.user ?? null,
+        platform: app?.platform ?? null,
+        version: app?.version ?? null,
+        colorScheme: app?.colorScheme ?? null,
+    };
+
+    console.log("[TG DEBUG]", debug);
 
     if (!app) {
         tgReady.set(true);
         return;
     }
 
-    try {
-        app.ready();
-        app.expand();
-    } catch {
-        // ignore
-    }
+    app.ready();
+    app.expand();
 
     tg.set(app);
-
-    // ВАЖНО: читаем user ПОСЛЕ ready/expand
-    const u = getUnsafeUser();
-    tgUser.set(u);
-
+    tgUser.set(app.initDataUnsafe?.user ?? null);
     tgReady.set(true);
 }

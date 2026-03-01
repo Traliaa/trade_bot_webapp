@@ -125,6 +125,11 @@
 {/if}
 
 <!-- DEBUG PANEL -->
+{#if import.meta.env.DEV}
+    <div>DEV MODE</div>
+{:else}
+    <div>PROD MODE</div>
+{/if}
 <div style="color: var(--tg-hint); font-size: 12px;">
     DEV: {String(import.meta.env.DEV)} |
     PUBLIC_DEV_USER_ID: {import.meta.env.PUBLIC_DEV_USER_ID ?? "—"}
