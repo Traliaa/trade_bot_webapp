@@ -1,7 +1,7 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
-ENV NODE_ENV=development
+
 RUN npm i -g npm@11.11.0
 RUN npm config set registry https://registry.npmjs.org/
 
