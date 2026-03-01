@@ -8,6 +8,19 @@ export const tgReady = writable(false);
 // debug (врем)
 export const tgDebug = writable<any>({});
 
+
+export async function waitForInitData(timeoutMs = 1500): Promise<string> {
+    const start = Date.now();
+
+    while (Date.now() - start < timeoutMs) {
+        const initData = window.Telegram?.WebApp?.initData;
+        if (initData && initData.length > 0) return initData;
+        await new Promise((r) => setTimeout(r, 50));
+    }
+
+    return window.Telegram?.WebApp?.initData ?? "";
+}
+
 export function initTelegram() {
     const app = getTelegram();
 

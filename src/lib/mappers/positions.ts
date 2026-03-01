@@ -1,5 +1,5 @@
-import type { OpenPosition } from "$lib/api/tradeApi.ts";
-import type { TradeCardVM } from "$lib/components/TradeCard.svelte";
+import type { OpenPosition } from "$lib/api/tradeApi";
+import type { TradeCardVM } from "$lib/types/trade";
 
 function n(v: any): number | undefined {
     const x = typeof v === "string" ? Number(v) : v;
@@ -65,11 +65,7 @@ export function mapOpenPosition(p: OpenPosition): TradeCardVM {
         (p as any).status ??
         "OPEN";
 
-    const updatedAt =
-        (p as any).updatedAt ??
-        (p as any).ts ??
-        (p as any).timestamp;
-
+    const updatedAt = toTs((p as any).updatedAt ?? (p as any).ts ?? (p as any).timestamp);
     return {
         symbol,
         side,
@@ -82,4 +78,22 @@ export function mapOpenPosition(p: OpenPosition): TradeCardVM {
         status,
         updatedAt
     };
+}
+
+
+function toTs(v: any): string | undefined {
+    if (v == null) return undefined;
+
+    // если это число/строка-число (unix ms)
+    const n = typeof v === "string" ? Number(v) : v;
+    if (Number.isFinite(n)) {
+        // если похоже на unix seconds, домножим
+        const ms = n < 1e12 ? n * 1000 : n;
+        return new Date(ms).toISOString();
+    }
+
+    if (typeof v === "string") return v;
+    if (v instanceof Date) return v.toISOString();
+
+    return String(v);
 }

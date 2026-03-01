@@ -6,7 +6,7 @@ export type TuneMode = "off" | "safe" | "aggressive" | string;
 export type TuneDecision = unknown;
 export type RuntimeTuning = unknown;
 export type RejectSnapshot = unknown;
-export type OpenPosition = unknown;
+export type OpenPosition = Record<string, any>;
 export type UserSession = unknown;
 
 export type UserSettings = {
