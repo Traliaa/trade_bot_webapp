@@ -2,9 +2,11 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { get } from "svelte/store";
-    import { tgUser } from "$lib/stores/telegram";
+    import { tgUser, tgReady } from "$lib/stores/telegram";
     import { isAdminUserId } from "$lib/auth/admin";
     import { adminTradeApi } from "$lib/api/adminTradeApi";
+    import { trade } from "$lib/api/tradeApi"; // для user-scoped debug: status/settings
+    import { DEV_USER_ID } from "$lib/env/public";
 
     let loading = false;
     let error: string | null = null;
@@ -13,8 +15,16 @@
     let runtime: any = null;
     let runtimeFrom: string | null = null;
     let runtimeTo: string | null = null;
-
     let rejects: any = null;
+
+    // DEBUG
+    type DebugRow = { name: string; ok: boolean; data: any };
+    let debug: DebugRow[] = [];
+    let debugLoading = false;
+
+    // userId реактивно (для user-scoped debug)
+    $: userId =
+        $tgUser?.id ?? (import.meta.env.DEV && DEV_USER_ID ? DEV_USER_ID : null);
 
     function setErr(e: any) {
         error = e?.message ?? String(e);
@@ -61,6 +71,7 @@
             await loadAll();
         } catch (e) {
             setErr(e);
+        } finally {
             loading = false;
         }
     }
@@ -77,6 +88,53 @@
         }
     }
 
+    function pretty(v: any) {
+        if (typeof v === "string") return v;
+        try {
+            return JSON.stringify(v, null, 2);
+        } catch {
+            return String(v);
+        }
+    }
+
+    async function runDebug() {
+        debugLoading = true;
+        debug = [];
+
+        const uid = userId;
+
+        // admin-scoped (без userId)
+        const calls: Array<[string, () => Promise<any>]> = [
+            ["admin.tuneMode()", () => adminTradeApi.tuneMode()],
+            ["admin.strategyTuning()", () => adminTradeApi.strategyTuning()],
+            ["admin.strategyRejects(reset=0)", () => adminTradeApi.strategyRejects(false)],
+            ["admin.toggleTuneMode()", () => adminTradeApi.toggleTuneMode()],
+            ["admin.autoTuneNow()", () => adminTradeApi.autoTuneNow()],
+        ];
+
+        // user-scoped (требуют userId) — теперь вместо session используем settings
+        if (uid) {
+            calls.unshift(["user.statusForUser(userId)", () => trade.statusForUser(uid)]);
+            calls.unshift(["user.getSettings(userId)", () => trade.getSettings(uid)]);
+        } else {
+            debug = [
+                ...debug,
+                { name: "userId", ok: false, data: "userId отсутствует (tgUser.id ещё не готов / не Telegram)" },
+            ];
+        }
+
+        for (const [name, fn] of calls) {
+            try {
+                const data = await fn();
+                debug = [...debug, { name, ok: true, data }];
+            } catch (e: any) {
+                debug = [...debug, { name, ok: false, data: e?.message ?? String(e) }];
+            }
+        }
+
+        debugLoading = false;
+    }
+
     onMount(() => {
         const u = get(tgUser);
         if (!isAdminUserId(u?.id)) {
@@ -89,58 +147,92 @@
 
 <h1 class="title">Админ</h1>
 
-<section class="card">
-    <div class="row">
-        <div>
-            <div class="k">Tune mode</div>
-            <div class="v">{mode ?? "—"}</div>
+{#if !$tgReady}
+    <div class="state">Инициализация Telegram…</div>
+{:else}
+    <section class="card">
+        <div class="row">
+            <div>
+                <div class="k">Tune mode</div>
+                <div class="v">{mode ?? "—"}</div>
+            </div>
+            <button class="btn" disabled={loading} on:click={toggleMode}>
+                Toggle
+            </button>
         </div>
-        <button class="btn" disabled={loading} on:click={toggleMode}>
-            Toggle
-        </button>
-    </div>
 
-    <div class="actions">
-        <button class="btn ghost" disabled={loading} on:click={loadAll}>
-            Refresh
-        </button>
-        <button class="btn" disabled={loading} on:click={autoTuneNow}>
-            Auto tune now
-        </button>
-    </div>
-</section>
-
-<section class="card">
-    <div class="head">
-        <div>
-            <div class="k">Runtime</div>
-            <div class="sub">{runtimeFrom ?? "—"} → {runtimeTo ?? "—"}</div>
+        <div class="actions">
+            <button class="btn ghost" disabled={loading} on:click={loadAll}>
+                Refresh
+            </button>
+            <button class="btn" disabled={loading} on:click={autoTuneNow}>
+                Auto tune now
+            </button>
         </div>
-    </div>
+    </section>
 
-    <pre class="pre">{runtime ? JSON.stringify(runtime, null, 2) : "—"}</pre>
-</section>
-
-<section class="card">
-    <div class="row">
-        <div>
-            <div class="k">Rejects</div>
-            <div class="sub">Снимок отклонений стратегии</div>
+    <section class="card">
+        <div class="head">
+            <div>
+                <div class="k">Runtime</div>
+                <div class="sub">{runtimeFrom ?? "—"} → {runtimeTo ?? "—"}</div>
+            </div>
         </div>
-        <button class="btn ghost" disabled={loading} on:click={resetRejects}>
-            Reset
-        </button>
-    </div>
 
-    <pre class="pre">{rejects ? JSON.stringify(rejects, null, 2) : "—"}</pre>
-</section>
+        <pre class="pre">{runtime ? JSON.stringify(runtime, null, 2) : "—"}</pre>
+    </section>
 
-{#if loading}
-    <div class="state">Выполняю…</div>
-{/if}
+    <section class="card">
+        <div class="row">
+            <div>
+                <div class="k">Rejects</div>
+                <div class="sub">Снимок отклонений стратегии</div>
+            </div>
+            <button class="btn ghost" disabled={loading} on:click={resetRejects}>
+                Reset
+            </button>
+        </div>
 
-{#if error}
-    <div class="err">Ошибка: {error}</div>
+        <pre class="pre">{rejects ? JSON.stringify(rejects, null, 2) : "—"}</pre>
+    </section>
+
+    <!-- DEBUG (под кнопкой) -->
+    <section class="card">
+        <div class="row">
+            <div>
+                <div class="k">Debug</div>
+                <div class="sub">Ручной прогон запросов (ничего не автозапускается)</div>
+            </div>
+            <button class="btn ghost" disabled={debugLoading} on:click={runDebug}>
+                {debugLoading ? "…" : "Run"}
+            </button>
+        </div>
+
+        <div class="meta">
+            tgReady: {String($tgReady)} |
+            tgUser.id: {$tgUser?.id ?? "—"} |
+            effective userId: {userId ?? "—"}
+        </div>
+
+        {#if debug.length === 0}
+            <div class="state">Нажми Run — выведу результаты.</div>
+        {:else}
+            {#each debug as r}
+                <div class="dbgRow">
+                    <div class="dbgName">{r.ok ? "✅" : "❌"} {r.name}</div>
+                    <pre class="pre">{pretty(r.data)}</pre>
+                </div>
+            {/each}
+        {/if}
+    </section>
+
+    {#if loading}
+        <div class="state">Выполняю…</div>
+    {/if}
+
+    {#if error}
+        <div class="err">Ошибка: {error}</div>
+    {/if}
 {/if}
 
 <style>
@@ -193,6 +285,12 @@
         font-size: 12px;
     }
 
+    .meta {
+        margin-top: 8px;
+        color: var(--tg-hint);
+        font-size: 12px;
+    }
+
     .actions {
         display: flex;
         gap: 10px;
@@ -230,6 +328,9 @@
         overflow: auto;
         max-height: 240px;
     }
+
+    .dbgRow { margin-top: 12px; }
+    .dbgName { font-size: 13px; font-weight: 900; color: var(--tg-text); margin-top: 8px; }
 
     .state {
         color: var(--tg-hint);

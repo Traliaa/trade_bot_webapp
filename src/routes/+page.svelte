@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { onMount } from "svelte";
     import ActiveDealsList from "$lib/components/ActiveDealsList.svelte";
     import { tgUser, tgReady } from "$lib/stores/telegram";
     import { DEV_USER_ID } from "$lib/env/public";
@@ -14,17 +13,12 @@
         updatedAt: string;
     };
 
-    // DEBUG
-    type DebugRow = { name: string; ok: boolean; data: any };
-
     let loading = true;
+    let actionLoading = false; // для enable/disable
     let error: string | null = null;
     let deals: DealVM[] = [];
 
-    let debug: DebugRow[] = [];
-    let debugLoading = false;
-
-    // userId вычисляем реактивно (без get()), чтобы не ловить race на onMount
+    // userId вычисляем реактивно
     $: userId =
         $tgUser?.id ?? (import.meta.env.DEV && DEV_USER_ID ? DEV_USER_ID : null);
 
@@ -65,71 +59,48 @@
         }
     }
 
-    async function runDebug() {
-        debugLoading = true;
-        debug = [];
-
-        // Снимок текущих значений (но userId уже реактивный)
-        const uid = userId;
-
-        const calls: Array<[string, () => Promise<any>]> = [
-            ["tuneMode()", () => trade.tuneMode()],
-            ["strategyTuning()", () => trade.strategyTuning()],
-            ["strategyRejects(reset=0)", () => trade.strategyRejects(false)],
-        ];
-
-        if (uid) {
-            calls.push(["statusForUser(userId)", () => trade.statusForUser(uid)]);
-            calls.push(["getSettings(userId)", () => trade.getSettings(uid)]);
-        } else {
-            debug = [
-                ...debug,
-                {
-                    name: "userId",
-                    ok: false,
-                    data: "tgUser.id ещё не готов или Mini App открыт не из Telegram",
-                },
-            ];
+    async function enableBot() {
+        if (!userId) return;
+        actionLoading = true;
+        error = null;
+        try {
+            await trade.enableUser(userId);
+            await loadDeals(userId);
+        } catch (e: any) {
+            error = e?.message ?? String(e);
+        } finally {
+            actionLoading = false;
         }
-
-        // POST’ы (можно комментить если не надо)
-        calls.push(["toggleTuneMode()", () => trade.toggleTuneMode()]);
-        calls.push(["autoTuneNow()", () => trade.autoTuneNow()]);
-
-        for (const [name, fn] of calls) {
-            try {
-                const data = await fn();
-                debug = [...debug, { name, ok: true, data }];
-            } catch (e: any) {
-                debug = [...debug, { name, ok: false, data: e?.message ?? String(e) }];
-            }
-        }
-
-        debugLoading = false;
     }
 
-    // 1) На маунте — просто стартуем debug (он сам отработает корректно, без userId=0)
-    onMount(async () => {
-        await runDebug();
-    });
-
-    // 2) Реактивная загрузка сделок: ждём tgReady + userId
-    $: if ($tgReady && userId) {
-        // чтобы не дергать API лишний раз, можно добавить простую защиту
-        // но обычно достаточно: загрузим при появлении userId
-        loadDeals(userId);
-    }
-
-    // 3) Если tgReady=true, но userId нет — это действительно "нет Telegram-пользователя"
-    $: if ($tgReady && !userId) {
-        loading = false;
-        deals = [];
-        error = "Нет Telegram-пользователя. Открой мини-апп из Telegram.";
+    async function disableBot() {
+        if (!userId) return;
+        actionLoading = true;
+        error = null;
+        try {
+            await trade.disableUser(userId);
+            await loadDeals(userId);
+        } catch (e: any) {
+            error = e?.message ?? String(e);
+        } finally {
+            actionLoading = false;
+        }
     }
 
     function retry() {
         if (userId) loadDeals(userId);
-        runDebug();
+    }
+
+    // Ждём tgReady + userId и только потом грузим сделки
+    $: if ($tgReady && userId) {
+        loadDeals(userId);
+    }
+
+    // Если tgReady=true, но userId нет — это реально "нет Telegram-пользователя"
+    $: if ($tgReady && !userId) {
+        loading = false;
+        deals = [];
+        error = "Нет Telegram-пользователя. Открой мини-апп из Telegram.";
     }
 </script>
 
@@ -137,56 +108,43 @@
 
 {#if !$tgReady}
     <div class="state">Инициализация Telegram…</div>
-{:else if loading}
-    <div class="state">Загружаю…</div>
-{:else if error}
-    <div class="state">
-        <div class="err">Ошибка: {error}</div>
-        <button class="btn" on:click={retry}>Повторить</button>
-    </div>
 {:else}
-    <ActiveDealsList {deals} />
-{/if}
-
-<!-- DEBUG PANEL -->
-{#if import.meta.env.DEV}
-    <div>DEV MODE</div>
-{:else}
-    <div>PROD MODE</div>
-{/if}
-
-<div style="color: var(--tg-hint); font-size: 12px;">
-    DEV: {String(import.meta.env.DEV)} |
-    PUBLIC_DEV_USER_ID: {import.meta.env.PUBLIC_DEV_USER_ID ?? "—"}
-</div>
-
-<div style="color: var(--tg-hint); font-size: 12px;">
-    DEV: {String(import.meta.env.DEV)} | DEV_USER_ID: {DEV_USER_ID || "—"}
-</div>
-
-<section class="dbg">
-    <div class="dbgHead">
-        <div class="dbgTitle">Debug API</div>
-        <button class="btn ghost" disabled={debugLoading} on:click={runDebug}>
-            {debugLoading ? "…" : "Run"}
-        </button>
-    </div>
-
-    <div class="dbgMeta" style="color: var(--tg-hint);">
-        tgReady: {String($tgReady)} |
-        tgUser.id: {($tgUser?.id ?? "—")} |
-        effective userId: {userId ?? "—"}
-    </div>
-
-    {#each debug as r}
-        <div class="dbgRow">
-            <div class="dbgName" style="color: var(--tg-text);">
-                {r.ok ? "✅" : "❌"} {r.name}
+    <!-- Управление ботом на главной -->
+    <section class="card">
+        <div class="row">
+            <div>
+                <div class="k">Бот</div>
+                <div class="sub">Включение/выключение торговли</div>
             </div>
-            <pre class="dbgPre">{typeof r.data === "string" ? r.data : JSON.stringify(r.data, null, 2)}</pre>
         </div>
-    {/each}
-</section>
+
+        <div class="actions">
+            <button class="btn" disabled={!userId || actionLoading} on:click={enableBot}>
+                Enable
+            </button>
+            <button class="btn ghost" disabled={!userId || actionLoading} on:click={disableBot}>
+                Disable
+            </button>
+        </div>
+
+        <div class="meta">
+            userId: {userId ?? "—"}
+        </div>
+    </section>
+
+    {#if loading}
+        <div class="state">Загружаю…</div>
+    {:else if error}
+        <div class="state">
+            <div class="err">Ошибка: {error}</div>
+            <button class="btn" on:click={retry} disabled={!userId || loading}>
+                Повторить
+            </button>
+        </div>
+    {:else}
+        <ActiveDealsList {deals} />
+    {/if}
+{/if}
 
 <style>
     .title {
@@ -195,14 +153,56 @@
         margin: 0 0 12px;
         color: var(--tg-text);
     }
+
     .state {
         color: var(--tg-hint);
         padding: 8px 2px;
     }
+
     .err {
         color: var(--tg-text);
         margin-bottom: 10px;
     }
+
+    .card {
+        background: var(--tg-bg);
+        border: 1px solid var(--tg-hint);
+        border-radius: 18px;
+        padding: 14px;
+        margin-bottom: 12px;
+    }
+
+    .row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .k {
+        font-size: 12px;
+        color: var(--tg-hint);
+        font-weight: 800;
+    }
+
+    .sub {
+        margin-top: 6px;
+        color: var(--tg-hint);
+        font-size: 12px;
+    }
+
+    .actions {
+        display: flex;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .meta {
+        margin-top: 8px;
+        color: var(--tg-hint);
+        font-size: 12px;
+    }
+
     .btn {
         width: 100%;
         padding: 10px 12px;
@@ -212,50 +212,14 @@
         color: var(--tg-button-text);
         border: 1px solid var(--tg-button);
     }
+
     .btn.ghost {
-        width: auto;
         background: transparent;
         color: var(--tg-text);
         border-color: var(--tg-hint);
     }
 
-    .dbg {
-        margin-top: 16px;
-        background: var(--tg-bg);
-        border: 1px solid var(--tg-hint);
-        border-radius: 18px;
-        padding: 12px;
-    }
-    .dbgHead {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 10px;
-    }
-    .dbgTitle {
-        font-weight: 900;
-        color: var(--tg-text);
-    }
-    .dbgMeta {
-        margin-top: 6px;
-        font-size: 12px;
-    }
-    .dbgRow {
-        margin-top: 12px;
-    }
-    .dbgName {
-        font-size: 13px;
-        font-weight: 800;
-        margin-bottom: 6px;
-    }
-    .dbgPre {
-        background: var(--tg-secondary-bg);
-        border: 1px solid var(--tg-hint);
-        border-radius: 14px;
-        padding: 10px;
-        font-size: 11px;
-        color: var(--tg-text);
-        overflow: auto;
-        max-height: 220px;
+    .btn:disabled {
+        opacity: 0.6;
     }
 </style>
