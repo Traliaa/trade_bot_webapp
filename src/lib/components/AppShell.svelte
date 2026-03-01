@@ -46,7 +46,7 @@
         </div>
         <div class="tabbar-safe"></div>
     </nav>
-    <DebugPanel />
+<!--    <DebugPanel />-->
 </div>
 
 <style>
