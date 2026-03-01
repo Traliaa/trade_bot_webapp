@@ -80,7 +80,7 @@
 
         if (uid) {
             calls.push(["statusForUser(userId)", () => trade.statusForUser(uid)]);
-            calls.push(["getSession(userId)", () => trade.getSession(uid)]);
+            calls.push(["getSettings(userId)", () => trade.getSettings(uid)]);
         } else {
             debug = [
                 ...debug,

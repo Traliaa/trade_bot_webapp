@@ -22,10 +22,16 @@ export async function waitForInitData(timeoutMs = 1500): Promise<string> {
 }
 
 
+
+
 export async function initTelegram() {
     const app = getTelegram();
+
+    // Если Mini App открыт НЕ в Telegram — это не "ready"
     if (!app) {
-        tgReady.set(true);
+        tg.set(null as any);        // если tg store типизирован под TelegramWebApp, подстрой
+        tgUser.set(null);
+        tgReady.set(false);
         return;
     }
 
@@ -35,10 +41,17 @@ export async function initTelegram() {
     tg.set(app);
     readTheme(app);
 
-    // ✅ ждём user
-    const u = await waitForUnsafeUser();
+    // Пробуем взять user сразу (часто он уже есть)
+    let u = app.initDataUnsafe?.user ?? null;
+
+    // Если нет — ждём, но с понятным таймаутом
+    if (!u) {
+        u = await waitForUnsafeUser({ timeoutMs: 2000, intervalMs: 50 });
+    }
+
     tgUser.set(u);
 
+    // tgReady = true только после установки tgUser (даже если он null)
     tgReady.set(true);
 }
 // export function initTelegram() {

@@ -15,7 +15,7 @@ export type UserSettings = {
 };
 
 export type StatusResponse = { positions: OpenPosition[] };
-export type SessionResponse = { session: UserSession | null };
+export type SettingsResponse = { session: UserSettings | null };
 
 export type AutoTuneResponse = {
     decision: TuneDecision;
@@ -45,8 +45,8 @@ export const trade = {
     statusForUser: (id: number) =>
         api<StatusResponse>(`/api/user/${id}/status`),
 
-    getSession: (id: number) =>
-        api<SessionResponse>(`/api/user/${id}/session`),
+    getSettings: (id: number) =>
+        api<SettingsResponse>(`/api/user/${id}/settings`),
 
     // tuning
     autoTuneNow: () => postEmpty<AutoTuneResponse>(`/api/tune/auto`),

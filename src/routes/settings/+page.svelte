@@ -1,7 +1,7 @@
 <script lang="ts">
     import { tgReady } from "$lib/stores/telegram";
     import { onMount } from "svelte";
-    import { trade } from "$lib/api/tradeApi.ts";
+    import { trade } from "$lib/api/tradeApi";
     import { me } from "$lib/stores/auth"; // если у вас есть /api/me
 
     let userId = 0;

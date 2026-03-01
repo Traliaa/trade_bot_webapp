@@ -5,10 +5,7 @@ export function getTelegram(): TgWebApp | null {
     return (window as any).Telegram?.WebApp ?? null;
 }
 
-// export function getInitData(): string {
-//     const app = getTelegram();
-//     return app?.initData ?? "";
-// }
+
 
 export function getUnsafeUser(): any | null {
     const app = getTelegram();
@@ -16,15 +13,26 @@ export function getUnsafeUser(): any | null {
 }
 
 
-export async function waitForUnsafeUser(timeoutMs = 1500): Promise<any | null> {
-    if (typeof window === "undefined") return null;
+type WaitOpts = { timeoutMs?: number; intervalMs?: number };
+
+function sleep(ms: number) {
+    return new Promise((r) => setTimeout(r, ms));
+}
+
+export async function waitForUnsafeUser(opts: WaitOpts = {}) {
+    const timeoutMs = opts.timeoutMs ?? 2000;
+    const intervalMs = opts.intervalMs ?? 50;
+
+    const app = getTelegram();
+    if (!app) return null;
 
     const start = Date.now();
+
     while (Date.now() - start < timeoutMs) {
-        const u = (window as any).Telegram?.WebApp?.initDataUnsafe?.user ?? null;
+        const u = app.initDataUnsafe?.user ?? null;
         if (u?.id) return u;
-        await new Promise((r) => setTimeout(r, 50));
+        await sleep(intervalMs);
     }
 
-    return getUnsafeUser();
+    return null;
 }
