@@ -6,7 +6,7 @@
     import AppShell from "$lib/components/AppShell.svelte";
 
     onMount(async () => {
-        initTelegram();
+        await initTelegram();      // ✅ важно
         await loginViaTelegram();
     });
 </script>

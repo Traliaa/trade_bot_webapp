@@ -4,6 +4,7 @@
     import { goto } from "$app/navigation";
     import { tgUser } from "$lib/stores/telegram";
     import { isAdminUserId } from "$lib/auth/admin";
+    import DebugPanel from "$lib/components/DebugPanel.svelte";
 
     $: admin = isAdminUserId($tgUser?.id);
 
@@ -45,6 +46,7 @@
         </div>
         <div class="tabbar-safe"></div>
     </nav>
+    <DebugPanel />
 </div>
 
 <style>

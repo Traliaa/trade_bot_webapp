@@ -1,4 +1,4 @@
-import { trade } from "$lib/api/tradeApi.ts";
+import { trade } from "$lib/api/tradeApi";
 import { isAdminNow } from "$lib/auth/admin";
 
 function requireAdmin() {
