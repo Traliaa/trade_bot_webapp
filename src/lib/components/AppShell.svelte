@@ -1,5 +1,4 @@
 <script lang="ts">
-    import TopBar from "$lib/components/TopBar.svelte";
     import { page } from "$app/stores";
     import { goto } from "$app/navigation";
     import { tgUser } from "$lib/stores/telegram";
@@ -15,15 +14,14 @@
     $: tabs = admin ? [...baseTabs, { href: "/admin", label: "Админ" }] : baseTabs;
 
     $: path = $page.url.pathname;
+
     function isActive(href: string) {
         return href === "/" ? path === "/" : path.startsWith(href);
     }
 </script>
 
 <div class="app">
-    <TopBar />
-
-    <!-- ✅ TabBar наверху -->
+    <!-- ✅ Меню (с safe-area сверху) -->
     <nav class="tabbar tabbarTop">
         <div class="tabs">
             {#each tabs as t}
@@ -38,12 +36,12 @@
         </div>
     </nav>
 
-    <!-- ✅ Единственный скролл — только тут -->
+    <!-- ✅ Контент -->
     <main class="surface">
         <slot />
     </main>
 
-    <!-- ✅ Safe area снизу, чтобы контент не упирался в низ на iPhone -->
+    <!-- ✅ Safe area снизу -->
     <div class="bottom-safe"></div>
 </div>
 
@@ -52,26 +50,31 @@
         height: 100%;
         margin: 0;
     }
+
     :global(body) {
-        overflow: hidden; /* ✅ убираем скролл страницы */
+        overflow: hidden; /* убираем второй скролл */
         background: var(--tg-bg);
     }
 
     .app {
-        height: 100dvh; /* ✅ важнее чем 100vh в мобилках */
+        height: 100dvh;
         display: flex;
         flex-direction: column;
-        overflow: hidden; /* ✅ чтобы ничего не вылезало наружу */
+        overflow: hidden;
 
         background: var(--tg-bg);
         color: var(--tg-text);
     }
 
-    /* Tabbar сверху */
+    /* Меню сверху + safe area */
     .tabbarTop {
+        padding:
+                calc(10px + env(safe-area-inset-top))
+                12px
+                10px;
+
         background: var(--tg-secondary-bg);
         border-bottom: 1px solid var(--tg-hint);
-        padding: 8px;
         flex: 0 0 auto;
     }
 
@@ -99,7 +102,7 @@
         border-color: var(--tg-hint);
     }
 
-    /* ✅ Основная рабочая область: скролл только здесь */
+    /* Единственный скролл */
     .surface {
         flex: 1;
         overflow: auto;
@@ -109,7 +112,6 @@
         padding: 16px;
     }
 
-    /* Safe area снизу */
     .bottom-safe {
         height: env(safe-area-inset-bottom);
         background: var(--tg-secondary-bg);

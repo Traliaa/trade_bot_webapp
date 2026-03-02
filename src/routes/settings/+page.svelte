@@ -1,7 +1,7 @@
 <script lang="ts">
     import { tgReady, tgUser } from "$lib/stores/telegram";
     import { DEV_USER_ID } from "$lib/env/public";
-    import { trade, UserSettings } from "$lib/api/tradeApi";
+    import {trade, type UserSettings} from "$lib/api/tradeApi";
 
 
 

@@ -3,70 +3,26 @@
     import { tgUser, tgReady } from "$lib/stores/telegram";
     import { DEV_USER_ID } from "$lib/env/public";
     import { trade } from "$lib/api/tradeApi";
+    import type {TradeCardVM} from "$lib/types/trade";
+    import {mapOpenPosition} from "$lib/mappers/positions";
 
-    type DealVM = {
-        symbol: string;
-        side: "BUY" | "SELL";
-        entry: number;
-        pnlPct: number;
-        size: number;
-        updatedAt: string;
-    };
+    let deals: TradeCardVM[] = [];
 
     let loading = true;
     let actionLoading = false; // для enable/disable
     let error: string | null = null;
-    let deals: DealVM[] = [];
 
     // userId вычисляем реактивно
     $: userId =
         $tgUser?.id ?? (import.meta.env.DEV && DEV_USER_ID ? DEV_USER_ID : null);
 
-    function toDealVM(p: any): DealVM {
-        const symbol = p.Symbol ?? p.symbol ?? p.instId ?? p.instrument ?? "UNKNOWN";
-
-        const sideRaw = p.Side ?? p.side ?? p.posSide ?? "BUY";
-        const side = String(sideRaw).toUpperCase() === "SELL" ? "SELL" : "BUY";
-
-        // entry: приоритет — Entry, потом EntryPrice, потом HoldAvgPrice/avgPx
-        const entry = Number(
-            p.Entry ?? p.entry ?? p.EntryPrice ?? p.entryPrice ?? p.HoldAvgPrice ?? p.avgPx ?? 0
-        );
-
-        // size: приоритет — Qty, потом Size, потом HoldVol/pos/sz
-        const size = Number(
-            p.Qty ?? p.qty ?? p.Size ?? p.size ?? p.HoldVol ?? p.pos ?? p.sz ?? 0
-        );
-
-        // pnl%: UnrealizedPnlPct (у тебя уже есть)
-        let pnlPct = Number(
-            p.UnrealizedPnlPct ?? p.unrealizedPnlPct ?? p.pnlPct ?? p.pnl_percent ?? p.pnlRatio ?? 0
-        );
-
-        // если вдруг UnrealizedPnlPct не заполнен — считаем от LastPrice/mark
-        if (!Number.isFinite(pnlPct) || pnlPct === 0) {
-            const last = Number(p.LastPrice ?? p.lastPrice ?? p.markPx ?? p.markPrice ?? p.last ?? 0);
-            if (entry > 0 && last > 0) {
-                const raw = ((last - entry) / entry) * 100;
-                pnlPct = side === "BUY" ? raw : -raw;
-            }
-        }
-
-        const updatedAt =
-            (p.Updated ? String(p.Updated) : null) ??
-            p.updatedAt ??
-            p.ts ??
-            "сейчас";
-
-        return { symbol, side, entry, pnlPct, size, updatedAt };
-    }
     async function loadDeals(uid: number) {
         loading = true;
         error = null;
 
         try {
             const res = await trade.statusForUser(uid);
-            deals = (res.positions ?? []).map(toDealVM);
+            deals = (res.positions ?? []).map(mapOpenPosition);
         } catch (e: any) {
             error = e?.message ?? String(e);
             deals = [];

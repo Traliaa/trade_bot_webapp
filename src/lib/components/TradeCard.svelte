@@ -1,18 +1,7 @@
 <script lang="ts">
-    export type Side = "BUY" | "SELL";
 
-    export type TradeCardVM = {
-        symbol: string;
-        side: Side;
-        pnlPct?: number;   // +1.24 = 1.24%
-        pnlAbs?: number;   // в валюте, если есть
-        entry?: number;
-        mark?: number;
-        size?: number;
-        lev?: number;
-        updatedAt?: string; // ISO
-        status?: "OPEN" | "PENDING" | "CLOSED";
-    };
+
+    import type {TradeCardVM} from "$lib/types/trade";
 
     export let item: TradeCardVM;
 
