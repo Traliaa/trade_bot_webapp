@@ -1,6 +1,8 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 
+RUN apk add --no-cache tzdata
+ENV TZ=Europe/Moscow
 
 RUN npm i -g npm@11.11.0
 RUN npm config set registry https://registry.npmjs.org/
@@ -26,6 +28,7 @@ ENV PUBLIC_DEV_USER_ID=$PUBLIC_DEV_USER_ID
 
 # vite build -> dist/
 RUN npm run build
+
 
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
