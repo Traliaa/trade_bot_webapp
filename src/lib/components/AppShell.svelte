@@ -4,15 +4,12 @@
     import { goto } from "$app/navigation";
     import { tgUser } from "$lib/stores/telegram";
     import { isAdminUserId } from "$lib/auth/admin";
-    import DebugPanel from "$lib/components/DebugPanel.svelte";
 
     $: admin = isAdminUserId($tgUser?.id);
 
     const baseTabs = [
         { href: "/", label: "Сделки" },
-        { href: "/partial", label: "Partial" },
-        { href: "/pro", label: "PRO" },
-        { href: "/settings", label: "Настройки" }
+        { href: "/settings", label: "Настройки" },
     ];
 
     $: tabs = admin ? [...baseTabs, { href: "/admin", label: "Админ" }] : baseTabs;
@@ -26,13 +23,8 @@
 <div class="app">
     <TopBar />
 
-    <!-- главная рабочая поверхность -->
-    <main class="surface">
-        <slot />
-    </main>
-
-    <!-- нижняя панель тоже на secondary_bg, а не с "черным rgba" -->
-    <nav class="tabbar">
+    <!-- ✅ TabBar наверху -->
+    <nav class="tabbar tabbarTop">
         <div class="tabs">
             {#each tabs as t}
                 <button
@@ -44,36 +36,43 @@
                 </button>
             {/each}
         </div>
-        <div class="tabbar-safe"></div>
     </nav>
-<!--    <DebugPanel />-->
+
+    <!-- ✅ Единственный скролл — только тут -->
+    <main class="surface">
+        <slot />
+    </main>
+
+    <!-- ✅ Safe area снизу, чтобы контент не упирался в низ на iPhone -->
+    <div class="bottom-safe"></div>
 </div>
 
 <style>
+    :global(html, body) {
+        height: 100%;
+        margin: 0;
+    }
+    :global(body) {
+        overflow: hidden; /* ✅ убираем скролл страницы */
+        background: var(--tg-bg);
+    }
+
     .app {
-        min-height: 100vh;
+        height: 100dvh; /* ✅ важнее чем 100vh в мобилках */
         display: flex;
         flex-direction: column;
+        overflow: hidden; /* ✅ чтобы ничего не вылезало наружу */
 
         background: var(--tg-bg);
         color: var(--tg-text);
     }
 
-    /* Surface: основной слой контента */
-    .surface {
-        flex: 1;
+    /* Tabbar сверху */
+    .tabbarTop {
         background: var(--tg-secondary-bg);
-
-        padding: 16px;
-        /* чтобы контент не залезал под таббар */
-        padding-bottom: 84px;
-    }
-
-    /* Tabbar: фиксируем визуально как нижний слой */
-    .tabbar {
-        background: var(--tg-secondary-bg);
-        border-top: 1px solid var(--tg-hint);
-        padding: 8px 8px 0;
+        border-bottom: 1px solid var(--tg-hint);
+        padding: 8px;
+        flex: 0 0 auto;
     }
 
     .tabs {
@@ -100,8 +99,20 @@
         border-color: var(--tg-hint);
     }
 
-    /* Safe area снизу (iPhone) */
-    .tabbar-safe {
+    /* ✅ Основная рабочая область: скролл только здесь */
+    .surface {
+        flex: 1;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+
+        background: var(--tg-secondary-bg);
+        padding: 16px;
+    }
+
+    /* Safe area снизу */
+    .bottom-safe {
         height: env(safe-area-inset-bottom);
+        background: var(--tg-secondary-bg);
+        flex: 0 0 auto;
     }
 </style>

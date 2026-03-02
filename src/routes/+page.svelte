@@ -23,27 +23,43 @@
         $tgUser?.id ?? (import.meta.env.DEV && DEV_USER_ID ? DEV_USER_ID : null);
 
     function toDealVM(p: any): DealVM {
-        const symbol = p.symbol ?? p.instId ?? "UNKNOWN";
-        const side =
-            String(p.side ?? p.posSide ?? "BUY").toUpperCase() === "SELL" ? "SELL" : "BUY";
-        const entry = Number(p.entry ?? p.avgPx ?? p.entryPrice ?? 0);
-        const size = Number(p.size ?? p.pos ?? p.sz ?? p.qty ?? 0);
+        const symbol = p.Symbol ?? p.symbol ?? p.instId ?? p.instrument ?? "UNKNOWN";
 
-        const pnlPctFromApi = p.pnlPct ?? p.pnl_percent ?? p.pnlRatio ?? null;
-        let pnlPct = pnlPctFromApi != null ? Number(pnlPctFromApi) : 0;
+        const sideRaw = p.Side ?? p.side ?? p.posSide ?? "BUY";
+        const side = String(sideRaw).toUpperCase() === "SELL" ? "SELL" : "BUY";
 
-        if (pnlPctFromApi == null) {
-            const mark = Number(p.mark ?? p.markPx ?? p.markPrice ?? p.last ?? 0);
-            if (entry > 0 && mark > 0) {
-                const raw = ((mark - entry) / entry) * 100;
+        // entry: приоритет — Entry, потом EntryPrice, потом HoldAvgPrice/avgPx
+        const entry = Number(
+            p.Entry ?? p.entry ?? p.EntryPrice ?? p.entryPrice ?? p.HoldAvgPrice ?? p.avgPx ?? 0
+        );
+
+        // size: приоритет — Qty, потом Size, потом HoldVol/pos/sz
+        const size = Number(
+            p.Qty ?? p.qty ?? p.Size ?? p.size ?? p.HoldVol ?? p.pos ?? p.sz ?? 0
+        );
+
+        // pnl%: UnrealizedPnlPct (у тебя уже есть)
+        let pnlPct = Number(
+            p.UnrealizedPnlPct ?? p.unrealizedPnlPct ?? p.pnlPct ?? p.pnl_percent ?? p.pnlRatio ?? 0
+        );
+
+        // если вдруг UnrealizedPnlPct не заполнен — считаем от LastPrice/mark
+        if (!Number.isFinite(pnlPct) || pnlPct === 0) {
+            const last = Number(p.LastPrice ?? p.lastPrice ?? p.markPx ?? p.markPrice ?? p.last ?? 0);
+            if (entry > 0 && last > 0) {
+                const raw = ((last - entry) / entry) * 100;
                 pnlPct = side === "BUY" ? raw : -raw;
             }
         }
 
-        const updatedAt = p.updatedAt ?? p.ts ?? "сейчас";
+        const updatedAt =
+            (p.Updated ? String(p.Updated) : null) ??
+            p.updatedAt ??
+            p.ts ??
+            "сейчас";
+
         return { symbol, side, entry, pnlPct, size, updatedAt };
     }
-
     async function loadDeals(uid: number) {
         loading = true;
         error = null;
