@@ -6,6 +6,7 @@ export type TuneMode = "off" | "safe" | "aggressive" | string;
 export type TuneDecision = unknown;
 export type RuntimeTuning = unknown;
 export type RejectSnapshot = unknown;
+
 export type OpenPosition = {
     Symbol?: string;
     Side?: string;
@@ -15,10 +16,33 @@ export type OpenPosition = {
     EntryPrice?: number;
     LastPrice?: number;
     UnrealizedPnlPct?: number;
-    Updated?: string; // или Date, но с JSON будет string
+    Updated?: string;
     HoldVol?: number;
     HoldAvgPrice?: number;
 };
+
+export type TradeRecord = {
+    symbol?: string;
+    side?: string;
+    entry_price?: number;
+    exit_price?: number;
+    qty?: number;
+    pnl_pct?: number;
+    rr?: number;
+    opened_at?: string;
+    closed_at?: string;
+    status?: string;
+    reason?: string;
+    partials?: string[];
+} & Record<string, any>;
+
+export type TradeStats = {
+    total_trades?: number;
+    winrate?: number;
+    avg_rr?: number;
+    pnl_day?: number;
+    pnl_day_pct?: number;
+} & Record<string, any>;
 
 // --- Settings types ---
 export type UserSettings = {
@@ -26,8 +50,8 @@ export type UserSettings = {
     telegram_id: number;
     name: string;
     step: string;
-    Status: boolean;  // если на бэке реально "Status"
-    Premium: boolean; // если на бэке реально "Premium"
+    Status: boolean;
+    Premium: boolean;
     settings: Settings;
 };
 
@@ -53,14 +77,17 @@ export type TradingSettings = {
 
     leverage: number;
     max_open_positions: number;
+    max_long_positions: number;
+    max_short_positions: number;
+
     position_pct: number;
     risk_pct: number;
 
     stop_pct: number;
     take_profit_rr: number;
 
-    confirm_timeout: string;      // "30m"
-    cooldown_per_symbol: string;  // "10m"
+    confirm_timeout: string;
+    cooldown_per_symbol: string;
 };
 
 export type TrailingConfig = {
@@ -71,7 +98,10 @@ export type TrailingConfig = {
     lock_offset_r: number;
 
     time_stop_bars: number;
-    time_stop_min_mfe_r: number;
+    time_stop_min_current_r: number;
+
+    early_time_stop_bars: number;
+    early_time_stop_min_mfe_r: number;
 
     partial_enabled: boolean;
     partial_trigger_r: number;
@@ -80,10 +110,9 @@ export type TrailingConfig = {
 
 // --- API responses ---
 export type StatusResponse = { positions: OpenPosition[] };
-
-// Бэк иногда отдаёт либо напрямую UserSettings, либо обёрткой {settings: ...}
-// Поддержим оба, чтобы фронт не ломался.
 export type SettingsResponse = UserSettings | { setting: UserSettings | null } | null;
+export type TradesResponse = { trades: TradeRecord[] };
+export type StatsResponse = { stats: TradeStats };
 
 export type AutoTuneResponse = {
     decision: TuneDecision;
@@ -94,7 +123,8 @@ export type AutoTuneResponse = {
     mode: TuneMode;
 };
 
-const postEmpty = <T>(url: string) => api<T>(url, { method: "POST", body: "{}" });
+const postEmpty = <T>(url: string) =>
+    api<T>(url, { method: "POST", body: "{}" });
 
 const postJSON = <T>(url: string, payload: unknown) =>
     api<T>(url, { method: "POST", body: JSON.stringify(payload) });
@@ -115,6 +145,7 @@ function unwrapSettings(resp: SettingsEnvelope): UserSettings | null {
 
     return resp as UserSettings;
 }
+
 function nsToHuman(v: any): string {
     const n = typeof v === "string" ? Number(v) : v;
     if (!Number.isFinite(n) || n <= 0) return "";
@@ -125,6 +156,7 @@ function nsToHuman(v: any): string {
     if (sec % 60 === 0) return `${sec / 60}m`;
     return `${sec}s`;
 }
+
 function normalizeSettings(u: UserSettings | null): UserSettings | null {
     if (!u) return null;
 
@@ -132,7 +164,6 @@ function normalizeSettings(u: UserSettings | null): UserSettings | null {
     const ts: any = s.TradingSettings ?? {};
     const tc: any = s.TrailingConfig ?? {};
 
-    // --- normalize duration ---
     if (typeof ts.confirm_timeout === "number") {
         ts.confirm_timeout = nsToHuman(ts.confirm_timeout);
     }
@@ -140,7 +171,7 @@ function normalizeSettings(u: UserSettings | null): UserSettings | null {
         ts.cooldown_per_symbol = nsToHuman(ts.cooldown_per_symbol);
     }
 
-    // --- normalize TrailingConfig PascalCase -> snake_case ---
+    // normalize PascalCase -> snake_case
     if ("BETriggerR" in tc) {
         s.TrailingConfig = {
             be_trigger_r: tc.BETriggerR,
@@ -148,7 +179,9 @@ function normalizeSettings(u: UserSettings | null): UserSettings | null {
             lock_trigger_r: tc.LockTriggerR,
             lock_offset_r: tc.LockOffsetR,
             time_stop_bars: tc.TimeStopBars,
-            time_stop_min_mfe_r: tc.TimeStopMinMFER,
+            time_stop_min_current_r: tc.TimeStopMinCurrentR,
+            early_time_stop_bars: tc.EarlyTimeStopBars,
+            early_time_stop_min_mfe_r: tc.EarlyTimeStopMinMFER,
             partial_enabled: tc.PartialEnabled,
             partial_trigger_r: tc.PartialTriggerR,
             partial_close_frac: tc.PartialCloseFrac,
@@ -167,40 +200,43 @@ function normalizeSettings(u: UserSettings | null): UserSettings | null {
     };
 }
 
-
 export const trade = {
-    // --- user ---
-    disableUser: (id: number) => postEmpty<void>(`/api/user/${id}/disable`),
+    disableBot: () => postEmpty<void>(`/api/bot/disable`),
 
-    // ✅ без второго аргумента (как ты используешь на главной)
-    enableUser: (id: number) => postEmpty<void>(`/api/user/${id}/enable`),
+    enableBot: (user: UserSettings) =>
+        postJSON<void>(`/api/bot/enable`, { user }),
 
-    // ✅ отправляем settings
-    // ВАЖНО: если бэк ожидает { user: settings } — поменяй на postJSON(..., { user: settings })
-    applySettings: (id: number, settings: Settings) =>
-        postJSON<void>(`/api/user/${id}/settings`, settings),
+    applySettings: (settings: UserSettings) =>
+        postJSON<void>(`/api/settings`, { user: settings }),
 
-    statusForUser: (id: number) => api<StatusResponse>(`/api/user/${id}/status`),
+    status: () => api<StatusResponse>(`/api/status`),
 
-    // ✅ возвращаем UserSettings | null (без обёртки)
-    getSettings: async (id: number): Promise<UserSettings | null> => {
-        const resp = await api<SettingsResponse>(`/api/user/${id}/settings`);
+    getSettings: async (): Promise<UserSettings | null> => {
+        const resp = await api<SettingsResponse>(`/api/settings`);
         const unwrapped = unwrapSettings(resp);
         return normalizeSettings(unwrapped);
     },
 
-    // --- tuning ---
-    autoTuneNow: () => postEmpty<AutoTuneResponse>(`/api/tune/auto`),
+    recentTrades: (limit = 20) =>
+        api<TradesResponse>(`/api/trades?limit=${limit}`),
 
-    toggleTuneMode: () => postEmpty<{ mode: TuneMode }>(`/api/tune/toggle`),
+    tradeStats: () =>
+        api<StatsResponse>(`/api/stats`),
 
-    tuneMode: () => api<{ mode: TuneMode }>(`/api/tune/mode`),
+    autoTuneNow: () =>
+        postEmpty<AutoTuneResponse>(`/api/strategy/tune/auto`),
+
+    toggleTuneMode: () =>
+        postEmpty<{ mode: TuneMode }>(`/api/strategy/tune/toggle`),
+
+    tuneMode: () =>
+        api<{ mode: TuneMode }>(`/api/strategy/tune/mode`),
 
     strategyRejects: (reset = false) =>
-        api<RejectSnapshot>(`/api/tune/rejects?reset=${reset ? "1" : "0"}`),
+        api<RejectSnapshot>(`/api/strategy/rejects?reset=${reset ? "1" : "0"}`),
 
     strategyTuning: () =>
-        api<{ runtime: RuntimeTuning; from: ISODateTime; to: ISODateTime }>(`/api/tune/runtime`),
+        api<{ runtime: RuntimeTuning; from: ISODateTime; to: ISODateTime }>(
+            `/api/strategy/runtime`
+        ),
 };
-
-
