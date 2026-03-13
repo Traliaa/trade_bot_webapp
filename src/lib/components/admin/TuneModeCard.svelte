@@ -123,6 +123,7 @@
         flex-direction: column;
         gap: 8px;
         margin-top: 12px;
+        color: var(--text-main);
     }
 
     .actions {

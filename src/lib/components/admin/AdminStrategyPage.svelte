@@ -97,6 +97,7 @@
         display: flex;
         flex-direction: column;
         gap: 12px;
+        color: var(--text-main);
     }
 
     .inner-card {
