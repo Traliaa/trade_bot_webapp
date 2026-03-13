@@ -1,27 +1,142 @@
 <script lang="ts">
-    const quickActions = [
-        ['API ключи OKX', 'Подключение биржи', '🔑'],
-        ['Тестовая сделка', 'Проверка логики', '🧪'],
-        ['Справка', 'Термины и подсказки', '📘'],
-        ['Версия', 'trade_bot_webapp 0.9.1', '🧩']
-    ];
+    import { onMount } from 'svelte';
+    import { settingsStore } from '$lib/stores/settings';
+    import { trade, type TuneMode, type UserSettings } from '$lib/api/tradeApi';
+    import BotControlsCard from './BotControlsCard.svelte';
+    import TestTradeCard from './TestTradeCard.svelte';
+    import { isAdminNow } from "$lib/auth/admin";
+    import AdminMenu from "$lib/components/admin/AdminStrategyPage.svelte";
 
-    const diagnostics = [
-        ['Статус подключения', 'OKX и WebSocket активны'],
-        ['Перезапустить бота', 'Служебное действие с подтверждением'],
-        ['Открыть логи', 'Для отладки и диагностики']
+    let loading = false;
+    let error: string | null = null;
+    let saveError: string | null = null;
+    let saveSuccess = false;
+    let tuneMode: TuneMode = 'off';
+    let draftUser: UserSettings | null = null;
+
+    onMount(() => {
+        loadPage();
+    });
+
+    function cloneUser<T>(value: T): T {
+        if (typeof structuredClone !== 'undefined') return structuredClone(value);
+        return JSON.parse(JSON.stringify(value));
+    }
+
+    $: if ($settingsStore.data && !draftUser) {
+        draftUser = cloneUser($settingsStore.data);
+    }
+    $: isAdmin = isAdminNow();
+    $: user = $settingsStore.data;
+    $: settings = draftUser?.settings;
+    $: trading = settings?.TradingSettings;
+    $: features = settings?.FeatureFlags;
+    $: premium = Boolean(user?.Premium);
+
+    async function loadPage() {
+        loading = true;
+        error = null;
+        saveError = null;
+        saveSuccess = false;
+
+        try {
+            await Promise.all([settingsStore.load(), loadTuneMode()]);
+            draftUser = null;
+        } catch (e) {
+            error = e instanceof Error ? e.message : 'Не удалось загрузить раздел';
+        } finally {
+            loading = false;
+        }
+    }
+
+    async function loadTuneMode() {
+        const resp = await trade.tuneMode();
+        tuneMode = resp.mode ?? 'off';
+    }
+
+    async function saveApiKeys() {
+        if (!draftUser) return;
+
+        saveError = null;
+        saveSuccess = false;
+
+        try {
+            await settingsStore.save(draftUser);
+            saveSuccess = true;
+            await settingsStore.load();
+            draftUser = null;
+        } catch (e) {
+            saveError = e instanceof Error ? e.message : 'Не удалось сохранить API-ключи';
+        }
+    }
+
+    function resetDraft() {
+        if ($settingsStore.data) {
+            draftUser = cloneUser($settingsStore.data);
+            saveError = null;
+            saveSuccess = false;
+        }
+    }
+
+    const quickActions = [
+        ['API ключи OKX', 'Подключение биржи и проверка доступа', '🔑'],
+        ['Тестовая сделка', 'Проверка логики без реальной позиции', '🧪'],
+        ['Справка', 'Термины и подсказки', '📘'],
+        ['Премиум', premium ? 'Активен' : 'Не активен', '💎']
     ];
 </script>
 
 <div class="stack">
+    <section class="info-card">
+        <div class="icon">⋯</div>
+        <div>
+            <div class="title">Ещё</div>
+            <div class="sub">Сервисные действия, подключение OKX и диагностика</div>
+        </div>
+    </section>
+
+    {#if error}
+        <section class="error-card">
+            <div class="title">Ошибка</div>
+            <div class="sub">{error}</div>
+            <button class="primary" on:click={loadPage} disabled={loading}>
+                Повторить
+            </button>
+        </section>
+    {/if}
+
+    {#if saveError}
+        <section class="error-card">
+            <div class="title">Ошибка сохранения</div>
+            <div class="sub">{saveError}</div>
+        </section>
+    {/if}
+
+    {#if saveSuccess}
+        <section class="success-card">
+            <div class="title">Сохранено</div>
+            <div class="sub">API-ключи обновлены</div>
+        </section>
+    {/if}
+    {#if isAdmin}
+        <AdminMenu />
+    {/if}
     <section class="card">
-        <div class="title">Быстрые действия</div>
-        <div class="sub">Самые частые сервисные разделы</div>
+        <div class="section-header">
+            <div>
+                <div class="title">Быстрые действия</div>
+                <div class="sub">Частые разделы и служебные сценарии</div>
+            </div>
+
+            <button class="ghost" on:click={loadPage} disabled={loading}>
+                {loading ? '...' : 'Обновить'}
+            </button>
+        </div>
 
         <div class="grid2">
             {#each quickActions as [title, subtitle, icon]}
-                <button class="action-card">
-                    <div class="icon">{icon}</div>
+                <button class="action-card" type="button">
+                    <div class="action-icon">{icon}</div>
                     <div class="action-title">{title}</div>
                     <div class="action-sub">{subtitle}</div>
                 </button>
@@ -29,45 +144,93 @@
         </div>
     </section>
 
+    <BotControlsCard
+            {user}
+            {tuneMode}
+            onTuneChanged={(mode) => (tuneMode = mode)}
+            onReload={loadPage}
+    />
+
     <section class="card">
-        <div class="title">Подключение OKX</div>
-        <div class="sub">Ключи и состояние соединения</div>
+        <div class="section-header">
+            <div>
+                <div class="title">Подключение OKX</div>
+                <div class="sub">API-ключи и базовые торговые параметры</div>
+            </div>
 
-        <div class="list">
-            <button class="row-btn">
-                <div>
-                    <div class="row-title">API ключи</div>
-                    <div class="row-sub">Добавить или обновить ключи доступа</div>
-                </div>
-                <span class="arrow">›</span>
-            </button>
+            <div class="inline-actions">
+                <button class="ghost" on:click={resetDraft} disabled={!draftUser || $settingsStore.saving}>
+                    Сбросить
+                </button>
+                <button class="primary" on:click={saveApiKeys} disabled={!draftUser || $settingsStore.saving}>
+                    {$settingsStore.saving ? 'Сохраняем...' : 'Сохранить'}
+                </button>
+            </div>
+        </div>
 
-            <div class="status-card">
-                <div>
-                    <div class="status-title">Соединение активно</div>
-                    <div class="status-sub">WebSocket подключён, права подтверждены</div>
+        {#if trading}
+            <div class="form-grid">
+                <label class="field">
+                    <span>OKX API key</span>
+                    <input type="text" bind:value={trading.okx_api_key} placeholder="Введите API key" />
+                </label>
+
+                <label class="field">
+                    <span>OKX API secret</span>
+                    <input type="password" bind:value={trading.okx_api_secret} placeholder="Введите API secret" />
+                </label>
+
+                <label class="field">
+                    <span>OKX Passphrase</span>
+                    <input type="password" bind:value={trading.okx_passphrase} placeholder="Введите passphrase" />
+                </label>
+
+                <div class="rows compact">
+                    <div class="row">
+                        <span>Плечо</span>
+                        <span>{trading.leverage ?? '—'}</span>
+                    </div>
+
+                    <div class="row">
+                        <span>Макс. позиций</span>
+                        <span>{trading.max_open_positions ?? '—'}</span>
+                    </div>
                 </div>
-                <span class="dot"></span>
+            </div>
+        {:else}
+            <div class="empty">Настройки подключения пока не загружены</div>
+        {/if}
+    </section>
+
+    <TestTradeCard />
+
+    <section class="card">
+        <div class="title">Диагностика стратегии</div>
+        <div class="sub">Быстрый просмотр сервисных параметров</div>
+
+        <div class="rows">
+            <div class="row">
+                <span>Симуляция перед входом</span>
+                <span>{features?.simulate_before_entry ? 'Вкл' : 'Выкл'}</span>
+            </div>
+
+            <div class="row">
+                <span>График сделки</span>
+                <span>{features?.deal_chart_enabled ? 'Вкл' : 'Выкл'}</span>
+            </div>
+
+            <div class="row">
+                <span>Авто-рекомендации</span>
+                <span>{features?.auto_recommend_enabled ? 'Вкл' : 'Выкл'}</span>
+            </div>
+
+            <div class="row">
+                <span>PRO режим</span>
+                <span>{features?.pro_mode ? 'Вкл' : 'Выкл'}</span>
             </div>
         </div>
     </section>
 
-    <section class="card">
-        <div class="title">Тест и диагностика</div>
-        <div class="sub">Проверка логики и состояния системы</div>
-
-        <div class="list">
-            {#each diagnostics as [title, subtitle]}
-                <button class="row-btn">
-                    <div>
-                        <div class="row-title">{title}</div>
-                        <div class="row-sub">{subtitle}</div>
-                    </div>
-                    <span class="arrow">›</span>
-                </button>
-            {/each}
-        </div>
-    </section>
 </div>
 
 <style>
@@ -77,11 +240,52 @@
         gap: 12px;
     }
 
-    .card {
+    .card,
+    .info-card,
+    .error-card,
+    .success-card {
         border-radius: 20px;
         padding: 14px;
         background: #111827;
         border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .info-card {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        background: #0e1628;
+    }
+
+    .error-card {
+        background: rgba(239, 68, 68, 0.08);
+        border-color: rgba(239, 68, 68, 0.2);
+    }
+
+    .success-card {
+        background: rgba(52, 211, 153, 0.08);
+        border-color: rgba(52, 211, 153, 0.2);
+    }
+
+    .icon,
+    .action-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(29, 78, 216, 0.2);
+        color: #60a5fa;
+        flex-shrink: 0;
+    }
+
+    .action-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+        background: rgba(255, 255, 255, 0.04);
+        color: #fff;
     }
 
     .title {
@@ -96,8 +300,20 @@
         color: rgba(255, 255, 255, 0.45);
     }
 
+    .section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        margin-bottom: 12px;
+    }
+
+    .inline-actions {
+        display: flex;
+        gap: 8px;
+    }
+
     .grid2 {
-        margin-top: 12px;
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 8px;
@@ -111,83 +327,98 @@
         border: 1px solid rgba(255, 255, 255, 0.08);
     }
 
-    .icon {
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: rgba(255, 255, 255, 0.04);
-        font-size: 18px;
-        margin-bottom: 10px;
-    }
-
-    .action-title,
-    .row-title,
-    .status-title {
+    .action-title {
+        margin-top: 10px;
         font-size: 14px;
         color: rgba(255, 255, 255, 0.9);
     }
 
-    .action-sub,
-    .row-sub,
-    .status-sub {
+    .action-sub {
         margin-top: 4px;
         font-size: 11px;
         line-height: 1.4;
         color: rgba(255, 255, 255, 0.45);
     }
 
-    .list {
-        margin-top: 12px;
+    .rows {
         display: flex;
         flex-direction: column;
         gap: 8px;
+        margin-top: 12px;
     }
 
-    .row-btn,
-    .status-card {
+    .rows.compact {
+        margin-top: 4px;
+    }
+
+    .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
         border-radius: 14px;
         padding: 12px;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.82);
     }
 
-    .row-btn {
+    .form-grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .field {
         display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        text-align: left;
+        flex-direction: column;
+        gap: 6px;
+        font-size: 13px;
+        color: rgba(255, 255, 255, 0.82);
     }
 
-    .status-card {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        background: rgba(52, 211, 153, 0.1);
-        border-color: rgba(52, 211, 153, 0.18);
+    .field input[type='text'],
+    .field input[type='password'] {
+        height: 42px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.03);
+        color: #fff;
+        padding: 0 12px;
+        font-size: 14px;
     }
 
-    .status-title {
-        color: #34d399;
+    .primary,
+    .ghost {
+        border-radius: 12px;
+        padding: 10px 14px;
+        font-size: 13px;
+        font-weight: 600;
     }
 
-    .status-sub {
-        color: rgba(167, 243, 208, 0.7);
+    .primary {
+        border: 0;
+        background: #1d4ed8;
+        color: #fff;
     }
 
-    .arrow {
-        color: rgba(255, 255, 255, 0.3);
-        font-size: 18px;
+    .ghost {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.03);
+        color: rgba(255, 255, 255, 0.8);
     }
 
-    .dot {
-        width: 10px;
-        height: 10px;
-        border-radius: 999px;
-        background: #34d399;
+    .primary:disabled,
+    .ghost:disabled {
+        opacity: 0.6;
+    }
+
+    .empty {
+        border-radius: 14px;
+        padding: 14px;
+        font-size: 13px;
+        background: rgba(255, 255, 255, 0.03);
+        color: rgba(255, 255, 255, 0.55);
     }
 </style>

@@ -43,16 +43,16 @@ function createSettingsStore() {
             }
         },
 
-        save: async (settings: UserSettings) => {
+        save: async (user: UserSettings) => {
             update((state) => ({ ...state, saving: true, error: null }));
 
             try {
-                await trade.applySettings(settings);
+                await trade.applySettings(user);
 
                 update((state) => ({
                     ...state,
                     saving: false,
-                    data: settings,
+                    data: user,
                 }));
             } catch (e) {
                 update((state) => ({
