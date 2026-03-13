@@ -17,7 +17,7 @@
 
 <style>
     .btn {
-        border-radius: 12px;
+        border-radius: 14px;
         padding: 10px 14px;
         font-size: 13px;
         font-weight: 600;
@@ -34,19 +34,24 @@
 
     .primary {
         border: 0;
-        background: var(--tg-button, #1d4ed8);
-        color: var(--tg-button-text, #fff);
+        background: var(--accent);
+        color: #fff;
+    }
+
+    .primary:hover {
+        background: var(--accent-hover);
     }
 
     .secondary,
     .ghost {
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border);
         background: rgba(255, 255, 255, 0.03);
-        color: rgba(255, 255, 255, 0.8);
+        color: var(--text-soft);
     }
 
     .ghost {
         padding: 8px 12px;
         font-size: 12px;
+        background: rgba(255, 255, 255, 0.02);
     }
 </style>

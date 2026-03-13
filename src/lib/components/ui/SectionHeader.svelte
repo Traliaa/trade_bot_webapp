@@ -28,13 +28,13 @@
     .title {
         font-size: 14px;
         font-weight: 600;
-        color: rgba(255, 255, 255, 0.92);
+        color: var(--text-main);
     }
 
     .sub {
         margin-top: 2px;
         font-size: 12px;
-        color: rgba(255, 255, 255, 0.45);
+        color: var(--text-muted);
     }
 
     .actions {

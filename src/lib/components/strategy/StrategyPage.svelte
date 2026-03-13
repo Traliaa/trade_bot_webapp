@@ -2,7 +2,11 @@
     import { onMount } from 'svelte';
     import { settingsStore } from '$lib/stores/settings';
     import type { UserSettings } from '$lib/api/tradeApi';
-    import { hapticLight, hapticSuccess, hapticError } from '$lib/telegram/haptics';
+    import { hapticLight, hapticSuccess, hapticError, hapticSelection } from '$lib/telegram/haptics';
+
+    import Card from '$lib/components/ui/Card.svelte';
+    import Button from '$lib/components/ui/Button.svelte';
+    import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
 
     let tab: 'trading' | 'limits' | 'trailing' | 'features' = 'trading';
     let draftUser: UserSettings | null = null;
@@ -29,11 +33,17 @@
     $: trailing = settings?.TrailingConfig;
     $: features = settings?.FeatureFlags;
 
+    function setTab(next: typeof tab) {
+        tab = next;
+        hapticSelection();
+    }
+
     function resetDraft() {
         if ($settingsStore.data) {
             draftUser = cloneUser($settingsStore.data);
             saveError = null;
             saveSuccess = false;
+            hapticLight();
         }
     }
 
@@ -81,56 +91,60 @@
         </div>
 
         <div class="top-actions">
-            <button class="ghost" on:click={resetDraft} disabled={$settingsStore.loading || $settingsStore.saving || !draftUser}>
+            <Button variant="ghost" on:click={resetDraft} disabled={$settingsStore.loading || $settingsStore.saving || !draftUser}>
                 Сбросить
-            </button>
-            <button class="primary" on:click={save} disabled={$settingsStore.loading || $settingsStore.saving || !draftUser}>
+            </Button>
+            <Button variant="primary" on:click={save} disabled={$settingsStore.loading || $settingsStore.saving || !draftUser}>
                 {$settingsStore.saving ? 'Сохраняем...' : 'Сохранить'}
-            </button>
+            </Button>
         </div>
     </div>
 
     <div class="tabs">
-        <button class:active={tab === 'trading'} on:click={() => (tab = 'trading')}>Торговля</button>
-        <button class:active={tab === 'limits'} on:click={() => (tab = 'limits')}>Лимиты</button>
-        <button class:active={tab === 'trailing'} on:click={() => (tab = 'trailing')}>Сопровождение</button>
-        <button class:active={tab === 'features'} on:click={() => (tab = 'features')}>Доп. функции</button>
+        <button class:active={tab === 'trading'} on:click={() => setTab('trading')}>Торговля</button>
+        <button class:active={tab === 'limits'} on:click={() => setTab('limits')}>Лимиты</button>
+        <button class:active={tab === 'trailing'} on:click={() => setTab('trailing')}>Сопровождение</button>
+        <button class:active={tab === 'features'} on:click={() => setTab('features')}>Доп. функции</button>
     </div>
 
     {#if saveError}
-        <section class="card error">
+        <Card variant="error">
             <div class="title">Ошибка сохранения</div>
             <div class="sub">{saveError}</div>
-        </section>
+        </Card>
     {/if}
 
     {#if saveSuccess}
-        <section class="card success">
+        <Card variant="success">
             <div class="title">Сохранено</div>
             <div class="sub">Настройки успешно обновлены</div>
-        </section>
+        </Card>
     {/if}
 
     {#if $settingsStore.error}
-        <section class="card error">
+        <Card variant="error">
             <div class="title">Ошибка загрузки</div>
             <div class="sub">{$settingsStore.error}</div>
-            <button class="primary inline-btn" on:click={reload}>Повторить</button>
-        </section>
+            <div class="top-gap">
+                <Button variant="primary" on:click={reload}>Повторить</Button>
+            </div>
+        </Card>
     {:else if $settingsStore.loading && !draftUser}
-        <section class="card">
+        <Card>
             <div class="title">Загрузка настроек...</div>
             <div class="sub">Получаем актуальные параметры с сервера</div>
-        </section>
+        </Card>
     {:else if !draftUser || !trading || !trailing || !features}
-        <section class="card">
+        <Card>
             <div class="title">Настройки не найдены</div>
             <div class="sub">Сервер не вернул данные пользователя</div>
-        </section>
+        </Card>
     {:else if tab === 'trading'}
-        <section class="card">
-            <div class="title">Базовые параметры торговли</div>
-            <div class="sub">Размер позиции, риск, стоп, тейк и плечо</div>
+        <Card>
+            <SectionHeader
+                    title="Базовые параметры торговли"
+                    subtitle="Размер позиции, риск, стоп, тейк и плечо"
+            />
 
             <div class="form-grid">
                 <label class="field">
@@ -158,11 +172,13 @@
                     <input type="number" step="1" bind:value={trading.leverage} />
                 </label>
             </div>
-        </section>
+        </Card>
     {:else if tab === 'limits'}
-        <section class="card">
-            <div class="title">Лимиты и защита</div>
-            <div class="sub">Ограничения по позициям и сигналам</div>
+        <Card>
+            <SectionHeader
+                    title="Лимиты и защита"
+                    subtitle="Ограничения по позициям и сигналам"
+            />
 
             <div class="form-grid">
                 <label class="field">
@@ -190,11 +206,13 @@
                     <input type="text" bind:value={trading.cooldown_per_symbol} placeholder="30s / 10m / 1h" />
                 </label>
             </div>
-        </section>
+        </Card>
     {:else if tab === 'trailing'}
-        <section class="card">
-            <div class="title">Сопровождение позиции</div>
-            <div class="sub">BE, Lock, time stop, early exit, partial</div>
+        <Card>
+            <SectionHeader
+                    title="Сопровождение позиции"
+                    subtitle="BE, Lock, time stop, early exit, partial"
+            />
 
             <div class="group">
                 <div class="group-title">Безубыток (BE)</div>
@@ -285,11 +303,13 @@
                     </label>
                 </div>
             </div>
-        </section>
+        </Card>
     {:else}
-        <section class="card">
-            <div class="title">Дополнительные функции</div>
-            <div class="sub">Флаги поведения интерфейса и логики</div>
+        <Card>
+            <SectionHeader
+                    title="Дополнительные функции"
+                    subtitle="Флаги поведения интерфейса и логики"
+            />
 
             <div class="toggle-list">
                 <label class="toggle-row">
@@ -317,7 +337,7 @@
                     <input type="checkbox" bind:checked={features.pro_mode} />
                 </label>
             </div>
-        </section>
+        </Card>
     {/if}
 </div>
 
@@ -376,33 +396,8 @@
         color: #fff;
     }
 
-    .card {
-        border-radius: 20px;
-        padding: 14px;
-        background: #111827;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .card.error {
-        background: rgba(239, 68, 68, 0.08);
-        border-color: rgba(239, 68, 68, 0.2);
-    }
-
-    .card.success {
-        background: rgba(52, 211, 153, 0.08);
-        border-color: rgba(52, 211, 153, 0.2);
-    }
-
-    .title {
-        font-size: 14px;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.92);
-    }
-
-    .sub {
-        margin-top: 2px;
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.45);
+    .top-gap {
+        margin-top: 12px;
     }
 
     .form-grid {
@@ -473,32 +468,5 @@
         border: 1px solid rgba(255, 255, 255, 0.08);
         font-size: 14px;
         color: rgba(255, 255, 255, 0.85);
-    }
-
-    .primary,
-    .ghost,
-    .inline-btn {
-        border-radius: 12px;
-        padding: 10px 14px;
-        font-size: 13px;
-        font-weight: 600;
-    }
-
-    .primary,
-    .inline-btn {
-        border: 0;
-        background: #1d4ed8;
-        color: #fff;
-    }
-
-    .ghost {
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.03);
-        color: rgba(255, 255, 255, 0.8);
-    }
-
-    .primary:disabled,
-    .ghost:disabled {
-        opacity: 0.6;
     }
 </style>

@@ -2,13 +2,15 @@
     import { onMount } from "svelte";
     import { initTelegram } from "$lib/stores/telegram";
     import { loginViaTelegram } from "$lib/auth/login";
-    import AppShell from "$lib/components/app/AppShell.svelte";
     import { authed, authError } from "$lib/stores/auth";
+    import AppShell from "$lib/components/app/AppShell.svelte";
+    import { applyTelegramTheme } from "$lib/telegram/theme";
 
     let booting = true;
 
     onMount(async () => {
         try {
+            applyTelegramTheme();
             await initTelegram();
             await loginViaTelegram();
         } finally {
@@ -40,9 +42,9 @@
         flex-direction: column;
         justify-content: center;
         align-items: center;
-        text-align: center;
         gap: 8px;
-        color: white;
+        text-align: center;
+        color: var(--text-main);
     }
 
     .title {
@@ -52,10 +54,10 @@
 
     .sub {
         font-size: 13px;
-        color: rgba(255, 255, 255, 0.55);
+        color: var(--text-muted);
     }
 
     .error .title {
-        color: #fca5a5;
+        color: var(--danger);
     }
 </style>

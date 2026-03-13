@@ -32,9 +32,9 @@
         grid-template-columns: repeat(4, 1fr);
         gap: 8px;
         padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-        background: rgba(17, 24, 39, 0.96);
-        border-top: 1px solid rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(10px);
+        background: rgba(2, 8, 23, 0.96);
+        border-top: 1px solid var(--border);
+        backdrop-filter: blur(12px);
         z-index: 20;
     }
 
@@ -44,12 +44,12 @@
         border-radius: 16px;
         padding: 10px 8px;
         font-size: 12px;
-        color: rgba(255, 255, 255, 0.6);
+        color: var(--text-muted);
         background: rgba(255, 255, 255, 0.04);
     }
 
     .bottom-nav a.active {
-        background: #1d4ed8;
-        color: white;
+        background: var(--accent);
+        color: #fff;
     }
 </style>

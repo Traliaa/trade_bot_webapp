@@ -11,8 +11,9 @@
 <style>
     .card {
         border-radius: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: var(--tg-bg-secondary, #111827);
+        border: 1px solid var(--border);
+        background: var(--card-bg);
+        box-shadow: var(--shadow-soft);
     }
 
     .padded {
@@ -20,7 +21,7 @@
     }
 
     .muted {
-        background: #0e1628;
+        background: var(--card-soft);
     }
 
     .error {

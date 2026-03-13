@@ -2,16 +2,17 @@
     import { onMount } from 'svelte';
     import { settingsStore } from '$lib/stores/settings';
     import { trade, type TuneMode, type UserSettings } from '$lib/api/tradeApi';
+    import { hapticLight, hapticSuccess, hapticError } from '$lib/telegram/haptics';
+    import { isAdminNow } from '$lib/auth/admin';
+
     import BotControlsCard from './BotControlsCard.svelte';
     import TestTradeCard from './TestTradeCard.svelte';
-    import { isAdminNow } from "$lib/auth/admin";
-    import AdminMenu from "$lib/components/admin/AdminStrategyPage.svelte";
-    import { hapticLight, hapticSuccess, hapticError } from '$lib/telegram/haptics';
+    import AdminMenu from '$lib/components/admin/AdminMenu.svelte';
+
     import Card from '$lib/components/ui/Card.svelte';
-    import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
-    import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
-    import InfoRow from '$lib/components/ui/InfoRow.svelte';
     import Button from '$lib/components/ui/Button.svelte';
+    import InfoRow from '$lib/components/ui/InfoRow.svelte';
+    import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
 
     let loading = false;
     let error: string | null = null;
@@ -19,6 +20,8 @@
     let saveSuccess = false;
     let tuneMode: TuneMode = 'off';
     let draftUser: UserSettings | null = null;
+
+    $: isAdmin = isAdminNow();
 
     onMount(() => {
         loadPage();
@@ -32,7 +35,7 @@
     $: if ($settingsStore.data && !draftUser) {
         draftUser = cloneUser($settingsStore.data);
     }
-    $: isAdmin = isAdminNow();
+
     $: user = $settingsStore.data;
     $: settings = draftUser?.settings;
     $: trading = settings?.TradingSettings;
@@ -50,6 +53,7 @@
             draftUser = null;
         } catch (e) {
             error = e instanceof Error ? e.message : 'Не удалось загрузить раздел';
+            hapticError();
         } finally {
             loading = false;
         }
@@ -84,6 +88,7 @@
             draftUser = cloneUser($settingsStore.data);
             saveError = null;
             saveSuccess = false;
+            hapticLight();
         }
     }
 
@@ -96,51 +101,53 @@
 </script>
 
 <div class="stack">
-    <section class="info-card">
-        <div class="icon">⋯</div>
-        <div>
-            <div class="title">Ещё</div>
-            <div class="sub">Сервисные действия, подключение OKX и диагностика</div>
+    <Card variant="muted">
+        <div class="info-head">
+            <div class="icon">⋯</div>
+            <div>
+                <div class="title">Ещё</div>
+                <div class="sub">Сервисные действия, подключение OKX и диагностика</div>
+            </div>
         </div>
-    </section>
+    </Card>
 
     {#if error}
-        <section class="error-card">
+        <Card variant="error">
             <div class="title">Ошибка</div>
             <div class="sub">{error}</div>
-            <button class="primary" on:click={loadPage} disabled={loading}>
-                Повторить
-            </button>
-        </section>
+            <div class="top-gap">
+                <Button variant="primary" on:click={loadPage} disabled={loading}>
+                    Повторить
+                </Button>
+            </div>
+        </Card>
     {/if}
 
     {#if saveError}
-        <section class="error-card">
+        <Card variant="error">
             <div class="title">Ошибка сохранения</div>
             <div class="sub">{saveError}</div>
-        </section>
+        </Card>
     {/if}
 
     {#if saveSuccess}
-        <section class="success-card">
+        <Card variant="success">
             <div class="title">Сохранено</div>
             <div class="sub">API-ключи обновлены</div>
-        </section>
+        </Card>
     {/if}
-    {#if isAdmin}
-        <AdminMenu />
-    {/if}
-    <section class="card">
-        <div class="section-header">
-            <div>
-                <div class="title">Быстрые действия</div>
-                <div class="sub">Частые разделы и служебные сценарии</div>
-            </div>
 
-            <button class="ghost" on:click={loadPage} disabled={loading}>
-                {loading ? '...' : 'Обновить'}
-            </button>
-        </div>
+    <Card>
+        <SectionHeader
+                title="Быстрые действия"
+                subtitle="Частые разделы и служебные сценарии"
+        >
+            <svelte:fragment slot="actions">
+                <Button variant="ghost" on:click={loadPage} disabled={loading}>
+                    {loading ? '...' : 'Обновить'}
+                </Button>
+            </svelte:fragment>
+        </SectionHeader>
 
         <div class="grid2">
             {#each quickActions as [title, subtitle, icon]}
@@ -151,7 +158,7 @@
                 </button>
             {/each}
         </div>
-    </section>
+    </Card>
 
     <BotControlsCard
             {user}
@@ -160,22 +167,22 @@
             onReload={loadPage}
     />
 
-    <section class="card">
-        <div class="section-header">
-            <div>
-                <div class="title">Подключение OKX</div>
-                <div class="sub">API-ключи и базовые торговые параметры</div>
-            </div>
-
-            <div class="inline-actions">
-                <button class="ghost" on:click={resetDraft} disabled={!draftUser || $settingsStore.saving}>
-                    Сбросить
-                </button>
-                <button class="primary" on:click={saveApiKeys} disabled={!draftUser || $settingsStore.saving}>
-                    {$settingsStore.saving ? 'Сохраняем...' : 'Сохранить'}
-                </button>
-            </div>
-        </div>
+    <Card>
+        <SectionHeader
+                title="Подключение OKX"
+                subtitle="API-ключи и базовые торговые параметры"
+        >
+            <svelte:fragment slot="actions">
+                <div class="inline-actions">
+                    <Button variant="ghost" on:click={resetDraft} disabled={!draftUser || $settingsStore.saving}>
+                        Сбросить
+                    </Button>
+                    <Button variant="primary" on:click={saveApiKeys} disabled={!draftUser || $settingsStore.saving}>
+                        {$settingsStore.saving ? 'Сохраняем...' : 'Сохранить'}
+                    </Button>
+                </div>
+            </svelte:fragment>
+        </SectionHeader>
 
         {#if trading}
             <div class="form-grid">
@@ -195,51 +202,58 @@
                 </label>
 
                 <div class="rows compact">
-                    <div class="row">
-                        <span>Плечо</span>
-                        <span>{trading.leverage ?? '—'}</span>
-                    </div>
+                    <InfoRow compact>
+                        <span slot="label">Плечо</span>
+                        <span slot="value">{trading.leverage ?? '—'}</span>
+                    </InfoRow>
 
-                    <div class="row">
-                        <span>Макс. позиций</span>
-                        <span>{trading.max_open_positions ?? '—'}</span>
-                    </div>
+                    <InfoRow compact>
+                        <span slot="label">Макс. позиций</span>
+                        <span slot="value">{trading.max_open_positions ?? '—'}</span>
+                    </InfoRow>
                 </div>
             </div>
         {:else}
-            <div class="empty">Настройки подключения пока не загружены</div>
+            <Card className="inner-card">
+                <div class="empty">Настройки подключения пока не загружены</div>
+            </Card>
         {/if}
-    </section>
+    </Card>
 
     <TestTradeCard />
 
-    <section class="card">
-        <div class="title">Диагностика стратегии</div>
-        <div class="sub">Быстрый просмотр сервисных параметров</div>
+    <Card>
+        <SectionHeader
+                title="Диагностика стратегии"
+                subtitle="Быстрый просмотр сервисных параметров"
+        />
 
         <div class="rows">
-            <div class="row">
-                <span>Симуляция перед входом</span>
-                <span>{features?.simulate_before_entry ? 'Вкл' : 'Выкл'}</span>
-            </div>
+            <InfoRow>
+                <span slot="label">Симуляция перед входом</span>
+                <span slot="value">{features?.simulate_before_entry ? 'Вкл' : 'Выкл'}</span>
+            </InfoRow>
 
-            <div class="row">
-                <span>График сделки</span>
-                <span>{features?.deal_chart_enabled ? 'Вкл' : 'Выкл'}</span>
-            </div>
+            <InfoRow>
+                <span slot="label">График сделки</span>
+                <span slot="value">{features?.deal_chart_enabled ? 'Вкл' : 'Выкл'}</span>
+            </InfoRow>
 
-            <div class="row">
-                <span>Авто-рекомендации</span>
-                <span>{features?.auto_recommend_enabled ? 'Вкл' : 'Выкл'}</span>
-            </div>
+            <InfoRow>
+                <span slot="label">Авто-рекомендации</span>
+                <span slot="value">{features?.auto_recommend_enabled ? 'Вкл' : 'Выкл'}</span>
+            </InfoRow>
 
-            <div class="row">
-                <span>PRO режим</span>
-                <span>{features?.pro_mode ? 'Вкл' : 'Выкл'}</span>
-            </div>
+            <InfoRow>
+                <span slot="label">PRO режим</span>
+                <span slot="value">{features?.pro_mode ? 'Вкл' : 'Выкл'}</span>
+            </InfoRow>
         </div>
-    </section>
+    </Card>
 
+    {#if isAdmin}
+        <AdminMenu />
+    {/if}
 </div>
 
 <style>
@@ -249,31 +263,10 @@
         gap: 12px;
     }
 
-    .card,
-    .info-card,
-    .error-card,
-    .success-card {
-        border-radius: 20px;
-        padding: 14px;
-        background: #111827;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .info-card {
+    .info-head {
         display: flex;
         gap: 12px;
         align-items: flex-start;
-        background: #0e1628;
-    }
-
-    .error-card {
-        background: rgba(239, 68, 68, 0.08);
-        border-color: rgba(239, 68, 68, 0.2);
-    }
-
-    .success-card {
-        background: rgba(52, 211, 153, 0.08);
-        border-color: rgba(52, 211, 153, 0.2);
     }
 
     .icon,
@@ -309,12 +302,8 @@
         color: rgba(255, 255, 255, 0.45);
     }
 
-    .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 12px;
-        margin-bottom: 12px;
+    .top-gap {
+        margin-top: 12px;
     }
 
     .inline-actions {
@@ -360,18 +349,6 @@
         margin-top: 4px;
     }
 
-    .row {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        border-radius: 14px;
-        padding: 12px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        font-size: 13px;
-        color: rgba(255, 255, 255, 0.82);
-    }
-
     .form-grid {
         display: grid;
         grid-template-columns: 1fr;
@@ -398,36 +375,12 @@
         font-size: 14px;
     }
 
-    .primary,
-    .ghost {
-        border-radius: 12px;
-        padding: 10px 14px;
-        font-size: 13px;
-        font-weight: 600;
-    }
-
-    .primary {
-        border: 0;
-        background: #1d4ed8;
-        color: #fff;
-    }
-
-    .ghost {
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.03);
-        color: rgba(255, 255, 255, 0.8);
-    }
-
-    .primary:disabled,
-    .ghost:disabled {
-        opacity: 0.6;
+    .inner-card {
+        margin-top: 12px;
     }
 
     .empty {
-        border-radius: 14px;
-        padding: 14px;
         font-size: 13px;
-        background: rgba(255, 255, 255, 0.03);
         color: rgba(255, 255, 255, 0.55);
     }
 </style>

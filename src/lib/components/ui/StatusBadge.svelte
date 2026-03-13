@@ -1,51 +1,36 @@
 <script lang="ts">
-    export let type: 'button' | 'submit' | 'reset' = 'button';
-    export let variant: 'primary' | 'secondary' | 'ghost' = 'secondary';
-    export let wide = false;
-    export let disabled = false;
-    export let className = '';
+    export let tone: 'success' | 'danger' | 'neutral' = 'neutral';
 </script>
 
-<button
-        {type}
-        {disabled}
-        class={`btn ${variant} ${wide ? 'wide' : ''} ${className}`}
->
-    <slot />
-</button>
+<span class={`badge ${tone}`}>
+  <slot />
+</span>
 
 <style>
-    .btn {
-        border-radius: 12px;
-        padding: 10px 14px;
-        font-size: 13px;
-        font-weight: 600;
-        transition: 0.15s ease;
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 5px 10px;
+        font-size: 11px;
+        border: 1px solid transparent;
     }
 
-    .btn:disabled {
-        opacity: 0.6;
+    .success {
+        color: var(--success);
+        background: var(--success-soft);
+        border-color: rgba(52, 211, 153, 0.18);
     }
 
-    .wide {
-        width: 100%;
+    .danger {
+        color: var(--danger);
+        background: var(--danger-soft);
+        border-color: rgba(251, 113, 133, 0.18);
     }
 
-    .primary {
-        border: 0;
-        background: var(--tg-button, #1d4ed8);
-        color: var(--tg-button-text, #fff);
-    }
-
-    .secondary,
-    .ghost {
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.03);
-        color: rgba(255, 255, 255, 0.8);
-    }
-
-    .ghost {
-        padding: 8px 12px;
-        font-size: 12px;
+    .neutral {
+        color: var(--text-soft);
+        background: rgba(255, 255, 255, 0.05);
+        border-color: var(--border);
     }
 </style>

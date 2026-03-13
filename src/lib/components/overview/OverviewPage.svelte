@@ -6,6 +6,11 @@
     import { startVisibilityPoller } from '$lib/utils/visibilityPoller';
     import { hapticLight } from '$lib/telegram/haptics';
 
+    import Card from '$lib/components/ui/Card.svelte';
+    import Button from '$lib/components/ui/Button.svelte';
+    import InfoRow from '$lib/components/ui/InfoRow.svelte';
+    import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
+    import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
 
     onMount(() => {
         const load = async () => {
@@ -31,8 +36,6 @@
             historyStore.loadAll(10)
         ]);
     }
-
-
 
     function isLong(side?: string): boolean {
         const s = (side ?? '').toLowerCase();
@@ -84,7 +87,6 @@
     $: avgR = typeof stats?.avg_rr === 'number' ? `${stats.avg_rr.toFixed(2)}R` : '—';
     $: totalTrades = typeof stats?.total_trades === 'number' ? `${stats.total_trades}` : '—';
 
-    // Фейковый график пока из последних pnl_pct, позже можно заменить на реальный timeseries
     $: weeklyBars = ($historyStore.trades ?? []).slice(0, 7).reverse().map((t, i) => {
         const raw = Math.abs(t.pnl_pct ?? 0);
         const height = Math.max(14, Math.min(88, raw * 20));
@@ -95,95 +97,99 @@
 </script>
 
 <div class="stack">
-    <section class="grid2">
-        <div class="card">
-            <div class="label">Баланс</div>
-            <div class="value">{balance}</div>
-            <div class="sub">Позже подключим из отдельной ручки</div>
-        </div>
+    <div class="grid2">
+        <Card>
+            <div class="stat-label">Баланс</div>
+            <div class="stat-value">{balance}</div>
+            <div class="stat-sub">Позже подключим из отдельной ручки</div>
+        </Card>
 
-        <div class="card">
-            <div class="label">P&amp;L за день</div>
-            <div class:profit={dayPnl !== '—' && !dayPnl.startsWith('-')} class:loss={dayPnl.startsWith('-')} class="value">
+        <Card>
+            <div class="stat-label">P&amp;L за день</div>
+            <div class:profit={dayPnl !== '—' && !dayPnl.startsWith('-')} class:loss={dayPnl.startsWith('-')} class="stat-value">
                 {dayPnl}
             </div>
-            <div class:profit-soft={dayPct !== '—' && !dayPct.startsWith('-')} class:loss-soft={dayPct.startsWith('-')} class="sub">
+            <div class:profit-soft={dayPct !== '—' && !dayPct.startsWith('-')} class:loss-soft={dayPct.startsWith('-')} class="stat-sub">
                 {dayPct}
             </div>
-        </div>
-    </section>
+        </Card>
+    </div>
 
-    <section class="card">
-        <div class="section-header">
-            <div>
-                <div class="title">Статус и сигнал</div>
-                <div class="sub">Краткое состояние бота прямо на главном экране</div>
-            </div>
-
-            <div class="header-actions">
-        <span class:success-badge={!$tradeStore.error} class:danger-badge={$tradeStore.error != null} class="badge">
-          {$tradeStore.error ? 'Ошибка' : 'Активен'}
-        </span>
-                <button class="ghost" on:click={refresh} disabled={$tradeStore.loading || $historyStore.loading}>
-                    {$tradeStore.loading || $historyStore.loading ? '...' : 'Обновить'}
-                </button>
-            </div>
-        </div>
+    <Card>
+        <SectionHeader
+                title="Статус и сигнал"
+                subtitle="Краткое состояние бота прямо на главном экране"
+        >
+            <svelte:fragment slot="actions">
+                <div class="header-actions">
+                    <StatusBadge tone={$tradeStore.error ? 'danger' : 'success'}>
+                        {$tradeStore.error ? 'Ошибка' : 'Активен'}
+                    </StatusBadge>
+                    <Button variant="ghost" on:click={refresh} disabled={$tradeStore.loading || $historyStore.loading}>
+                        {$tradeStore.loading || $historyStore.loading ? '...' : 'Обновить'}
+                    </Button>
+                </div>
+            </svelte:fragment>
+        </SectionHeader>
 
         <div class="rows">
-            <div class="row">
-                <span>Последний сигнал</span>
-                <span>{lastSignal()}</span>
-            </div>
-            <div class="row">
-                <span>WebSocket</span>
-                <span class:profit={!$tradeStore.error} class:loss={$tradeStore.error != null}>
+            <InfoRow>
+                <span slot="label">Последний сигнал</span>
+                <span slot="value">{lastSignal()}</span>
+            </InfoRow>
+
+            <InfoRow>
+                <span slot="label">WebSocket</span>
+                <span slot="value" class:profit={!$tradeStore.error} class:loss={$tradeStore.error != null}>
           {$tradeStore.error ? 'Проблема' : 'Подключен'}
         </span>
-            </div>
-            <div class="row">
-                <span>Биржа</span>
-                <span>OKX</span>
-            </div>
-        </div>
-    </section>
+            </InfoRow>
 
-    <section class="card">
-        <div class="title">Статистика за 7 дней</div>
-        <div class="sub">Основные показатели стратегии</div>
+            <InfoRow>
+                <span slot="label">Биржа</span>
+                <span slot="value">OKX</span>
+            </InfoRow>
+        </div>
+    </Card>
+
+    <Card>
+        <SectionHeader
+                title="Статистика за 7 дней"
+                subtitle="Основные показатели стратегии"
+        />
 
         <div class="stats-grid">
-            <div class="mini-card">
-                <div class="label">Винрейт</div>
+            <Card padded={true} className="mini-card">
+                <div class="stat-label">Винрейт</div>
                 <div class="mini-value">{winrate}</div>
-            </div>
+            </Card>
 
-            <div class="mini-card">
-                <div class="label">Средний R</div>
+            <Card padded={true} className="mini-card">
+                <div class="stat-label">Средний R</div>
                 <div class="mini-value">{avgR}</div>
-            </div>
+            </Card>
 
-            <div class="mini-card">
-                <div class="label">Сделок</div>
+            <Card padded={true} className="mini-card">
+                <div class="stat-label">Сделок</div>
                 <div class="mini-value">{totalTrades}</div>
-            </div>
+            </Card>
         </div>
-    </section>
+    </Card>
 
-    <section class="card">
-        <div class="section-header">
-            <div>
-                <div class="title">P&amp;L за последние сделки</div>
-                <div class="sub">Временный мини-график на основе истории</div>
-            </div>
-
-            <span class="link">{dayPct}</span>
-        </div>
+    <Card>
+        <SectionHeader
+                title="P&amp;L за последние сделки"
+                subtitle="Временный мини-график на основе истории"
+        >
+            <svelte:fragment slot="actions">
+                <span class="link-text">{dayPct}</span>
+            </svelte:fragment>
+        </SectionHeader>
 
         {#if weeklyBars.length === 0}
-            <div class="empty">
-                Пока недостаточно данных для графика
-            </div>
+            <Card className="inner-card">
+                <div class="empty">Пока недостаточно данных для графика</div>
+            </Card>
         {:else}
             <div class="bars">
                 {#each weeklyBars as bar}
@@ -201,28 +207,34 @@
                 {/each}
             </div>
         {/if}
-    </section>
+    </Card>
 
-    <section class="card">
-        <div class="section-header">
-            <div>
-                <div class="title">Активные сделки</div>
-                <div class="sub">Сейчас открыто {positions.length}</div>
-            </div>
-
-            <button class="link-btn" on:click={() => goto('/deals')}>
-                Все
-            </button>
-        </div>
+    <Card>
+        <SectionHeader
+                title="Активные сделки"
+                subtitle={`Сейчас открыто ${positions.length}`}
+        >
+            <svelte:fragment slot="actions">
+                <Button variant="ghost" on:click={() => goto('/deals')}>
+                    Все
+                </Button>
+            </svelte:fragment>
+        </SectionHeader>
 
         {#if $tradeStore.loading && positions.length === 0}
-            <div class="empty">Загружаем позиции...</div>
+            <Card className="inner-card">
+                <div class="empty">Загружаем позиции...</div>
+            </Card>
         {:else if $tradeStore.error}
-            <div class="error">{$tradeStore.error}</div>
+            <Card variant="error" className="inner-card">
+                <div class="error-text">{$tradeStore.error}</div>
+            </Card>
         {:else if positions.length === 0}
-            <div class="empty">Нет открытых позиций</div>
+            <Card className="inner-card">
+                <div class="empty">Нет открытых позиций</div>
+            </Card>
         {:else}
-            <div class="list">
+            <div class="rows">
                 {#each positions.slice(0, 3) as position}
                     <div class="trade-row">
                         <div>
@@ -232,7 +244,7 @@
                   {position.side}
                 </span>
                             </div>
-                            <div class="sub">Вход {position.entry}</div>
+                            <div class="trade-sub">Вход {position.entry}</div>
                         </div>
 
                         <div class:profit={position.pnlPct.startsWith('+')} class:loss={position.pnlPct.startsWith('-')} class="pnl">
@@ -242,7 +254,7 @@
                 {/each}
             </div>
         {/if}
-    </section>
+    </Card>
 </div>
 
 <style>
@@ -258,31 +270,35 @@
         gap: 8px;
     }
 
-    .card,
-    .mini-card {
-        border-radius: 20px;
-        background: #111827;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+    .rows {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-top: 12px;
     }
 
-    .card {
-        padding: 14px;
+    .header-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
     }
 
-    .mini-card {
-        padding: 12px;
-    }
-
-    .label {
+    .stat-label {
         font-size: 11px;
         color: rgba(255, 255, 255, 0.45);
     }
 
-    .value {
+    .stat-value {
         margin-top: 4px;
         font-size: 20px;
         font-weight: 600;
         color: #fff;
+    }
+
+    .stat-sub {
+        margin-top: 2px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.45);
     }
 
     .mini-value {
@@ -290,18 +306,6 @@
         font-size: 18px;
         font-weight: 600;
         color: #fff;
-    }
-
-    .title {
-        font-size: 14px;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.92);
-    }
-
-    .sub {
-        margin-top: 2px;
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.45);
     }
 
     .profit {
@@ -320,76 +324,15 @@
         color: rgba(251, 113, 133, 0.7);
     }
 
-    .section-header {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 12px;
-        margin-bottom: 12px;
-    }
-
-    .header-actions {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        padding: 5px 10px;
-        font-size: 11px;
-    }
-
-    .success-badge {
-        color: #34d399;
-        background: rgba(52, 211, 153, 0.1);
-        border: 1px solid rgba(52, 211, 153, 0.18);
-    }
-
-    .danger-badge {
-        color: #fca5a5;
-        background: rgba(239, 68, 68, 0.08);
-        border: 1px solid rgba(239, 68, 68, 0.18);
-    }
-
-    .ghost {
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.03);
-        color: rgba(255, 255, 255, 0.7);
-        border-radius: 12px;
-        padding: 8px 12px;
-        font-size: 12px;
-    }
-
-    .ghost:disabled {
-        opacity: 0.6;
-    }
-
-    .rows,
-    .list {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-    }
-
-    .row,
-    .trade-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 12px;
-        padding: 12px;
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.03);
-    }
-
     .stats-grid {
         margin-top: 12px;
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 8px;
+    }
+
+    .mini-card {
+        background: rgba(255, 255, 255, 0.03);
     }
 
     .bars {
@@ -439,6 +382,22 @@
         color: rgba(255, 255, 255, 0.35);
     }
 
+    .link-text {
+        color: var(--tg-link, #60a5fa);
+        font-size: 12px;
+    }
+
+    .trade-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
     .trade-top {
         display: flex;
         align-items: center;
@@ -471,39 +430,28 @@
         border: 1px solid rgba(251, 113, 133, 0.18);
     }
 
+    .trade-sub {
+        margin-top: 2px;
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.45);
+    }
+
     .pnl {
         font-size: 14px;
         font-weight: 600;
     }
 
-    .link {
-        color: #60a5fa;
-        font-size: 12px;
-    }
-
-    .link-btn {
-        border: 0;
-        background: transparent;
-        color: #60a5fa;
-        font-size: 12px;
-        padding: 0;
-    }
-
-    .empty,
-    .error {
-        border-radius: 14px;
-        padding: 14px;
-        font-size: 13px;
-        background: rgba(255, 255, 255, 0.03);
+    .inner-card {
+        margin-top: 12px;
     }
 
     .empty {
+        font-size: 13px;
         color: rgba(255, 255, 255, 0.55);
     }
 
-    .error {
+    .error-text {
+        font-size: 13px;
         color: #fca5a5;
-        background: rgba(239, 68, 68, 0.08);
-        border: 1px solid rgba(239, 68, 68, 0.2);
     }
 </style>

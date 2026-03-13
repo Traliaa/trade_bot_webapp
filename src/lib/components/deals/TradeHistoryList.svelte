@@ -3,10 +3,14 @@
     import { historyStore } from '$lib/stores/history';
     import type { TradeRecord } from '$lib/api/tradeApi';
     import { startVisibilityPoller } from '$lib/utils/visibilityPoller';
-    import { hapticLight } from '$lib/telegram/haptics';
+    import { hapticLight, hapticSelection } from '$lib/telegram/haptics';
+
+    import Card from '$lib/components/ui/Card.svelte';
+    import Button from '$lib/components/ui/Button.svelte';
+    import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
+    import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
 
     let selectedTradeIndex = 0;
-
 
     onMount(() => {
         historyStore.loadAll(20);
@@ -81,6 +85,11 @@
         return trade.reason ?? 'Причина не указана';
     }
 
+    function selectTrade(index: number) {
+        selectedTradeIndex = index;
+        hapticSelection();
+    }
+
     $: trades = $historyStore.trades ?? [];
     $: stats = $historyStore.stats;
     $: safeIndex = Math.min(selectedTradeIndex, Math.max(trades.length - 1, 0));
@@ -88,66 +97,70 @@
 </script>
 
 <div class="stack">
-    <section class="info-card">
-        <div class="icon">🕘</div>
-        <div>
-            <div class="title">История сделок</div>
-            <div class="sub">Закрытые сделки, результат и причина выхода</div>
+    <Card variant="muted">
+        <div class="info-head">
+            <div class="icon">🕘</div>
+            <div>
+                <div class="title">История сделок</div>
+                <div class="sub">Закрытые сделки, результат и причина выхода</div>
+            </div>
         </div>
-    </section>
+    </Card>
 
     {#if stats}
-        <section class="card">
-            <div class="title">Сводка</div>
-            <div class="sub">Краткая статистика по последним сделкам</div>
+        <Card>
+            <SectionHeader
+                    title="Сводка"
+                    subtitle="Краткая статистика по последним сделкам"
+            />
 
             <div class="stats-grid">
-                <div class="mini-card">
+                <Card padded={true} className="mini-card">
                     <div class="mini-label">Сделок</div>
                     <div class="mini-value">{stats.total_trades ?? '—'}</div>
-                </div>
+                </Card>
 
-                <div class="mini-card">
+                <Card padded={true} className="mini-card">
                     <div class="mini-label">Винрейт</div>
                     <div class="mini-value">
                         {typeof stats.winrate === 'number' ? `${stats.winrate.toFixed(1)}%` : '—'}
                     </div>
-                </div>
+                </Card>
 
-                <div class="mini-card">
+                <Card padded={true} className="mini-card">
                     <div class="mini-label">Средний R</div>
                     <div class="mini-value">
                         {typeof stats.avg_rr === 'number' ? `${stats.avg_rr.toFixed(2)}R` : '—'}
                     </div>
-                </div>
+                </Card>
             </div>
-        </section>
+        </Card>
     {/if}
 
-    <section class="card">
-        <div class="header">
-            <div>
-                <div class="title">Последние сделки</div>
-                <div class="sub">
-                    {#if $historyStore.loading}
-                        Загрузка...
-                    {:else}
-                        Загружено {trades.length} сделок
-                    {/if}
-                </div>
-            </div>
-
-            <button class="ghost" type="button" on:click={refresh} disabled={$historyStore.loading}>
-                {$historyStore.loading ? '...' : 'Обновить'}
-            </button>
-        </div>
+    <Card>
+        <SectionHeader
+                title="Последние сделки"
+                subtitle={$historyStore.loading ? 'Загрузка...' : `Загружено ${trades.length} сделок`}
+        >
+            <svelte:fragment slot="actions">
+                <Button variant="ghost" on:click={refresh} disabled={$historyStore.loading}>
+                    {$historyStore.loading ? '...' : 'Обновить'}
+                </Button>
+            </svelte:fragment>
+        </SectionHeader>
 
         {#if $historyStore.error}
-            <div class="error">{$historyStore.error}</div>
+            <Card variant="error" className="inner-card">
+                <div class="error-text">{$historyStore.error}</div>
+            </Card>
         {:else if $historyStore.loading && trades.length === 0}
-            <div class="empty">Загружаем историю...</div>
+            <Card className="inner-card">
+                <div class="empty">Загружаем историю...</div>
+            </Card>
         {:else if trades.length === 0}
-            <div class="empty">История сделок пуста</div>
+            <Card className="inner-card">
+                <div class="empty">История сделок пуста</div>
+            </Card>
         {:else}
             <div class="history-list">
                 {#each trades as item, index}
@@ -155,19 +168,15 @@
                             type="button"
                             class:selected={safeIndex === index}
                             class="history-row"
-                            on:click={() => (selectedTradeIndex = index)}
+                            on:click={() => selectTrade(index)}
                     >
                         <div>
                             <div class="top-row">
                                 <span class="pair">{tradePair(item)}</span>
 
-                                <span
-                                        class:long={tradeSide(item) === 'Лонг'}
-                                        class:short={tradeSide(item) === 'Шорт'}
-                                        class="side"
-                                >
-                  {tradeSide(item)}
-                </span>
+                                <StatusBadge tone={tradeSide(item) === 'Лонг' ? 'success' : 'danger'}>
+                                    {tradeSide(item)}
+                                </StatusBadge>
                             </div>
 
                             <div class="sub">{formatDate(item.closed_at ?? item.opened_at)}</div>
@@ -189,62 +198,52 @@
                 {/each}
             </div>
         {/if}
-    </section>
+    </Card>
 
     {#if selectedTrade}
-        <section class="card">
-            <div class="details-header">
-                <div>
-                    <div class="top-row">
-                        <div class="title">Детали сделки</div>
+        <Card>
+            <SectionHeader
+                    title="Детали сделки"
+                    subtitle={`${tradePair(selectedTrade)} · ${formatDate(selectedTrade.closed_at ?? selectedTrade.opened_at)}`}
+            >
+                <svelte:fragment slot="actions">
+                    <StatusBadge tone={tradeSide(selectedTrade) === 'Лонг' ? 'success' : 'danger'}>
+                        {tradeSide(selectedTrade)}
+                    </StatusBadge>
+                </svelte:fragment>
+            </SectionHeader>
 
-                        <span
-                                class:long={tradeSide(selectedTrade) === 'Лонг'}
-                                class:short={tradeSide(selectedTrade) === 'Шорт'}
-                                class="side"
-                        >
-              {tradeSide(selectedTrade)}
-            </span>
-                    </div>
-
-                    <div class="sub">
-                        {tradePair(selectedTrade)} · {formatDate(selectedTrade.closed_at ?? selectedTrade.opened_at)}
-                    </div>
+            <div class="details-result">
+                <div
+                        class:profit={isProfit(selectedTrade.pnl_pct)}
+                        class:loss={!isProfit(selectedTrade.pnl_pct)}
+                        class="result big"
+                >
+                    {formatPct(selectedTrade.pnl_pct)}
                 </div>
-
-                <div class="details-result">
-                    <div
-                            class:profit={isProfit(selectedTrade.pnl_pct)}
-                            class:loss={!isProfit(selectedTrade.pnl_pct)}
-                            class="result"
-                    >
-                        {formatPct(selectedTrade.pnl_pct)}
-                    </div>
-
-                    <div class="sub">{formatRR(selectedTrade.rr)}</div>
-                </div>
+                <div class="sub">{formatRR(selectedTrade.rr)}</div>
             </div>
 
             <div class="grid2">
-                <div class="mini-card">
+                <Card padded={true} className="mini-card">
                     <div class="mini-label">Вход</div>
                     <div class="mini-value">{formatPrice(selectedTrade.entry_price)}</div>
-                </div>
+                </Card>
 
-                <div class="mini-card">
+                <Card padded={true} className="mini-card">
                     <div class="mini-label">Выход</div>
                     <div class="mini-value">{formatPrice(selectedTrade.exit_price)}</div>
-                </div>
+                </Card>
 
-                <div class="mini-card">
+                <Card padded={true} className="mini-card">
                     <div class="mini-label">Размер</div>
                     <div class="mini-value">{formatPrice(selectedTrade.qty)}</div>
-                </div>
+                </Card>
 
-                <div class="mini-card">
+                <Card padded={true} className="mini-card">
                     <div class="mini-label">Статус</div>
                     <div class="mini-value">{tradeStatus(selectedTrade)}</div>
-                </div>
+                </Card>
             </div>
 
             <div class="scheme-card">
@@ -269,12 +268,12 @@
                 </div>
             </div>
 
-            <div class="reason-card">
+            <Card className="inner-card mini-block">
                 <div class="mini-label">Причина выхода</div>
                 <div class="reason-text">{tradeReason(selectedTrade)}</div>
-            </div>
+            </Card>
 
-            <div class="partials-card">
+            <Card className="inner-card mini-block">
                 <div class="mini-label">Частичные фиксации</div>
 
                 <div class="partials-list">
@@ -286,8 +285,8 @@
                         <div class="partial-empty">Частичных закрытий не было</div>
                     {/if}
                 </div>
-            </div>
-        </section>
+            </Card>
+        </Card>
     {/if}
 </div>
 
@@ -298,19 +297,10 @@
         gap: 12px;
     }
 
-    .card,
-    .info-card {
-        border-radius: 20px;
-        padding: 14px;
-        background: #111827;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .info-card {
+    .info-head {
         display: flex;
         gap: 12px;
         align-items: flex-start;
-        background: #0e1628;
     }
 
     .icon {
@@ -343,33 +333,12 @@
         color: rgba(255, 255, 255, 0.55);
     }
 
-    .header,
-    .details-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 12px;
-        margin-bottom: 12px;
-    }
-
-    .ghost {
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.03);
-        color: rgba(255, 255, 255, 0.7);
-        border-radius: 12px;
-        padding: 8px 12px;
-        font-size: 12px;
-    }
-
-    .ghost:disabled {
-        opacity: 0.6;
-    }
-
     .history-list,
     .partials-list {
         display: flex;
         flex-direction: column;
         gap: 8px;
+        margin-top: 12px;
     }
 
     .history-row {
@@ -403,26 +372,6 @@
         color: #fff;
     }
 
-    .side {
-        display: inline-flex;
-        border-radius: 999px;
-        padding: 2px 8px;
-        font-size: 10px;
-        font-weight: 600;
-    }
-
-    .side.long {
-        color: #34d399;
-        background: rgba(52, 211, 153, 0.12);
-        border: 1px solid rgba(52, 211, 153, 0.18);
-    }
-
-    .side.short {
-        color: #fb7185;
-        background: rgba(251, 113, 133, 0.12);
-        border: 1px solid rgba(251, 113, 133, 0.18);
-    }
-
     .right,
     .details-result {
         text-align: right;
@@ -431,6 +380,10 @@
     .result {
         font-size: 14px;
         font-weight: 700;
+    }
+
+    .result.big {
+        font-size: 18px;
     }
 
     .profit {
@@ -453,13 +406,8 @@
         margin-top: 12px;
     }
 
-    .mini-card,
-    .reason-card,
-    .partials-card {
-        border-radius: 14px;
+    .mini-card {
         background: rgba(255, 255, 255, 0.03);
-        padding: 12px;
-        margin-top: 12px;
     }
 
     .mini-label {
@@ -568,6 +516,14 @@
         top: 2px;
     }
 
+    .inner-card {
+        margin-top: 12px;
+    }
+
+    .mini-block {
+        background: rgba(255, 255, 255, 0.03);
+    }
+
     .reason-text {
         margin-top: 6px;
         font-size: 13px;
@@ -592,21 +548,13 @@
         color: rgba(255, 255, 255, 0.5);
     }
 
-    .empty,
-    .error {
-        border-radius: 14px;
-        padding: 14px;
-        font-size: 13px;
-        background: rgba(255, 255, 255, 0.03);
-    }
-
     .empty {
+        font-size: 13px;
         color: rgba(255, 255, 255, 0.55);
     }
 
-    .error {
+    .error-text {
+        font-size: 13px;
         color: #fca5a5;
-        background: rgba(239, 68, 68, 0.08);
-        border: 1px solid rgba(239, 68, 68, 0.2);
     }
 </style>

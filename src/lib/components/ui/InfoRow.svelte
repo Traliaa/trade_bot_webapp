@@ -1,35 +1,40 @@
 <script lang="ts">
-    export let tone: 'success' | 'danger' | 'neutral' = 'neutral';
+  export let compact = false;
+  export let className = '';
 </script>
 
-<span class={`badge ${tone}`}>
-  <slot />
-</span>
+<div class={`row ${compact ? 'compact' : ''} ${className}`}>
+  <span class="left">
+    <slot name="label" />
+  </span>
+
+  <span class="right">
+    <slot name="value" />
+  </span>
+</div>
 
 <style>
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        padding: 5px 10px;
-        font-size: 11px;
-    }
+  .row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    border-radius: 14px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border);
+    font-size: 13px;
+  }
 
-    .success {
-        color: #34d399;
-        background: rgba(52, 211, 153, 0.1);
-        border: 1px solid rgba(52, 211, 153, 0.18);
-    }
+  .compact {
+    padding: 10px 12px;
+  }
 
-    .danger {
-        color: #fca5a5;
-        background: rgba(239, 68, 68, 0.08);
-        border: 1px solid rgba(239, 68, 68, 0.18);
-    }
+  .left {
+    color: var(--text-soft);
+  }
 
-    .neutral {
-        color: rgba(255, 255, 255, 0.75);
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
+  .right {
+    text-align: right;
+    color: var(--text-main);
+  }
 </style>
