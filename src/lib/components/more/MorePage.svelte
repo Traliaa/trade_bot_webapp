@@ -4,10 +4,9 @@
     import { trade, type TuneMode, type UserSettings } from '$lib/api/tradeApi';
     import { hapticLight, hapticSuccess, hapticError } from '$lib/telegram/haptics';
     import { isAdminNow } from '$lib/auth/admin';
-
+    import AdminStrategyPage from '$lib/components/admin/AdminStrategyPage.svelte';
     import BotControlsCard from './BotControlsCard.svelte';
     import TestTradeCard from './TestTradeCard.svelte';
-    import AdminMenu from '$lib/components/admin/AdminMenu.svelte';
 
     import Card from '$lib/components/ui/Card.svelte';
     import Button from '$lib/components/ui/Button.svelte';
@@ -252,7 +251,7 @@
     </Card>
 
     {#if isAdmin}
-        <AdminMenu />
+        <AdminStrategyPage />
     {/if}
 </div>
 
