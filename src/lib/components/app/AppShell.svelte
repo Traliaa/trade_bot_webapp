@@ -14,10 +14,20 @@
 </div>
 
 <style>
+    :global(:root) {
+        --tg-bg: #0b1220;
+        --tg-bg-secondary: #111827;
+        --tg-text: #ffffff;
+        --tg-hint: rgba(255, 255, 255, 0.55);
+        --tg-link: #60a5fa;
+        --tg-button: #1d4ed8;
+        --tg-button-text: #ffffff;
+    }
+
     .app-shell {
         min-height: 100dvh;
-        background: #0b1220;
-        color: #fff;
+        background: var(--tg-bg);
+        color: var(--tg-text);
     }
 
     .app-content {

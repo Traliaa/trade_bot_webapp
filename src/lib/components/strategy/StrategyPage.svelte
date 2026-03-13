@@ -2,6 +2,7 @@
     import { onMount } from 'svelte';
     import { settingsStore } from '$lib/stores/settings';
     import type { UserSettings } from '$lib/api/tradeApi';
+    import { hapticLight, hapticSuccess, hapticError } from '$lib/telegram/haptics';
 
     let tab: 'trading' | 'limits' | 'trailing' | 'features' = 'trading';
     let draftUser: UserSettings | null = null;
@@ -48,13 +49,16 @@
 
         saveError = null;
         saveSuccess = false;
+        hapticLight();
 
         try {
             await settingsStore.save(draftUser);
             draftUser = cloneUser(draftUser);
             saveSuccess = true;
+            hapticSuccess();
         } catch (e) {
             saveError = e instanceof Error ? e.message : 'Не удалось сохранить настройки';
+            hapticError();
         }
     }
 

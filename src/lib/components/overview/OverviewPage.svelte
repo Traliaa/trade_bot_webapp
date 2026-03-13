@@ -3,18 +3,36 @@
     import { goto } from '$app/navigation';
     import { tradeStore } from '$lib/stores/trade';
     import { historyStore } from '$lib/stores/history';
+    import { startVisibilityPoller } from '$lib/utils/visibilityPoller';
+    import { hapticLight } from '$lib/telegram/haptics';
+
 
     onMount(() => {
-        tradeStore.loadPositions();
-        historyStore.loadAll(10);
+        const load = async () => {
+            await Promise.all([
+                tradeStore.loadPositions(),
+                historyStore.loadAll(10)
+            ]);
+        };
+
+        load();
+
+        const poller = startVisibilityPoller(load, 7000);
+
+        return () => {
+            poller.stop();
+        };
     });
 
     async function refresh() {
+        hapticLight();
         await Promise.all([
             tradeStore.loadPositions(),
             historyStore.loadAll(10)
         ]);
     }
+
+
 
     function isLong(side?: string): boolean {
         const s = (side ?? '').toLowerCase();

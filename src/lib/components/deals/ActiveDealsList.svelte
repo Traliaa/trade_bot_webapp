@@ -2,14 +2,27 @@
     import { onMount } from 'svelte';
     import TradeCard from './TradeCard.svelte';
     import { tradeStore } from '$lib/stores/trade';
+    import { startPoller } from '$lib/utils/poller';
+    import { hapticLight } from '$lib/telegram/haptics';
+    import {startVisibilityPoller} from "$lib/utils/visibilityPoller";
 
     export let userId: number;
 
     onMount(() => {
         tradeStore.loadPositions();
+
+        const poller = startVisibilityPoller(
+            () => tradeStore.loadPositions(),
+            5000
+        );
+
+        return () => {
+            poller.stop();
+        };
     });
 
     async function refresh() {
+        hapticLight();
         await tradeStore.loadPositions();
     }
 </script>

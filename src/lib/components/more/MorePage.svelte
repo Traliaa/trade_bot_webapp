@@ -6,6 +6,7 @@
     import TestTradeCard from './TestTradeCard.svelte';
     import { isAdminNow } from "$lib/auth/admin";
     import AdminMenu from "$lib/components/admin/AdminStrategyPage.svelte";
+    import { hapticLight, hapticSuccess, hapticError } from '$lib/telegram/haptics';
 
     let loading = false;
     let error: string | null = null;
@@ -59,14 +60,17 @@
 
         saveError = null;
         saveSuccess = false;
+        hapticLight();
 
         try {
             await settingsStore.save(draftUser);
             saveSuccess = true;
+            hapticSuccess();
             await settingsStore.load();
             draftUser = null;
         } catch (e) {
             saveError = e instanceof Error ? e.message : 'Не удалось сохранить API-ключи';
+            hapticError();
         }
     }
 

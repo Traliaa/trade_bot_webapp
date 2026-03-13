@@ -2,14 +2,27 @@
     import { onMount } from 'svelte';
     import { historyStore } from '$lib/stores/history';
     import type { TradeRecord } from '$lib/api/tradeApi';
+    import { startVisibilityPoller } from '$lib/utils/visibilityPoller';
+    import { hapticLight } from '$lib/telegram/haptics';
 
     let selectedTradeIndex = 0;
 
+
     onMount(() => {
         historyStore.loadAll(20);
+
+        const poller = startVisibilityPoller(
+            () => historyStore.loadAll(20),
+            15000
+        );
+
+        return () => {
+            poller.stop();
+        };
     });
 
     async function refresh() {
+        hapticLight();
         await historyStore.loadAll(20);
     }
 

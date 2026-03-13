@@ -28,7 +28,11 @@ export async function api<T>(path: string, opts: ApiOptions = {}): Promise<T> {
         const initData = window.Telegram?.WebApp?.initData;
         if (initData) headers["X-Tg-Init-Data"] = initData;
     }
-
+    console.log("[api request]", {
+        path,
+        tokenValue,
+        headers
+    });
     const res = await fetch(url, {
         ...opts,
         headers,
