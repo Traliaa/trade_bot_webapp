@@ -1,18 +1,23 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import { adminTradeApi } from "$lib/api/adminTradeApi";
-    import type { TuneMode } from "$lib/api/tradeApi";
+    import { onMount } from 'svelte';
+    import { adminTradeApi } from '$lib/api/adminTradeApi';
+    import type { TuneMode } from '$lib/api/tradeApi';
 
-    import TuneModeCard from "./TuneModeCard.svelte";
-    import RejectStatsCard from "./RejectStatsCard.svelte";
-    import RuntimeTuningCard from "./RuntimeTuningCard.svelte";
+    import Card from '$lib/components/ui/Card.svelte';
+    import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
+    import Button from '$lib/components/ui/Button.svelte';
+
+    import TuneModeCard from './TuneModeCard.svelte';
+    import RejectStatsCard from './RejectStatsCard.svelte';
+    import RuntimeTuningCard from './RuntimeTuningCard.svelte';
 
     let loading = true;
     let error: string | null = null;
 
-    let tuneMode: TuneMode = "off";
+    let tuneMode: TuneMode = 'off';
     let runtime: any = null;
     let rejects: any = null;
+    let lastAutoTune: any = null;
 
     onMount(load);
 
@@ -30,9 +35,8 @@
             tuneMode = mode.mode;
             runtime = tuning.runtime;
             rejects = rej;
-
         } catch (e) {
-            error = e instanceof Error ? e.message : "load failed";
+            error = e instanceof Error ? e.message : 'load failed';
         } finally {
             loading = false;
         }
@@ -44,7 +48,7 @@
     }
 
     async function autoTune() {
-        await adminTradeApi.autoTuneNow();
+        lastAutoTune = await adminTradeApi.autoTuneNow();
         await load();
     }
 
@@ -53,16 +57,29 @@
     }
 </script>
 
-<section class="stack">
+<div class="stack">
+    <Card>
+        <SectionHeader
+                title="Admin Strategy"
+                subtitle="Тюн стратегии и reject статистика доступны только админу"
+        >
+            <svelte:fragment slot="actions">
+                <Button variant="ghost" on:click={load} disabled={loading}>
+                    {loading ? '...' : 'Обновить'}
+                </Button>
+            </svelte:fragment>
+        </SectionHeader>
 
-    <div class="title">Admin Strategy</div>
-
-    {#if error}
-        <div class="error">{error}</div>
-    {/if}
+        {#if error}
+            <Card variant="error" className="inner-card">
+                <div class="error-text">{error}</div>
+            </Card>
+        {/if}
+    </Card>
 
     <TuneModeCard
             {tuneMode}
+            {lastAutoTune}
             onToggle={toggleTune}
             onAutoTune={autoTune}
     />
@@ -73,24 +90,21 @@
             {rejects}
             onReset={resetRejects}
     />
-
-</section>
+</div>
 
 <style>
     .stack {
-        display:flex;
-        flex-direction:column;
-        gap:12px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
     }
 
-    .title{
-        font-size:16px;
-        font-weight:600;
+    .inner-card {
+        margin-top: 12px;
     }
 
-    .error{
-        padding:12px;
-        background:#3a1c1c;
-        border-radius:12px;
+    .error-text {
+        font-size: 13px;
+        color: var(--danger);
     }
 </style>

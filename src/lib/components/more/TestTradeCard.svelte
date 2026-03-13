@@ -1,4 +1,9 @@
 <script lang="ts">
+    import Card from '$lib/components/ui/Card.svelte';
+    import Button from '$lib/components/ui/Button.svelte';
+    import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
+    import { hapticLight, hapticSuccess, hapticError, hapticSelection } from '$lib/telegram/haptics';
+
     let symbol = 'BTC-USDT-SWAP';
     let side: 'buy' | 'sell' = 'buy';
     let leverage = 1;
@@ -7,13 +12,19 @@
     let success: string | null = null;
     let error: string | null = null;
 
+    function setSide(next: 'buy' | 'sell') {
+        side = next;
+        hapticSelection();
+    }
+
     async function submit() {
         loading = true;
         success = null;
         error = null;
+        hapticLight();
 
         try {
-            // TODO: заменить на реальную ручку, когда будет готова
+            // TODO: заменить на реальную ручку
             console.log('test-trade', {
                 symbol,
                 side,
@@ -23,17 +34,21 @@
 
             await new Promise((resolve) => setTimeout(resolve, 500));
             success = 'Тестовая сделка отправлена';
+            hapticSuccess();
         } catch (e) {
             error = e instanceof Error ? e.message : 'Не удалось отправить тестовую сделку';
+            hapticError();
         } finally {
             loading = false;
         }
     }
 </script>
 
-<section class="card">
-    <div class="title">Тестовая сделка</div>
-    <div class="sub">Проверка сценария без Telegram-кнопок</div>
+<Card>
+    <SectionHeader
+            title="Тестовая сделка"
+            subtitle="Проверка сценария без Telegram-кнопок"
+    />
 
     <div class="form-grid">
         <label class="field">
@@ -42,10 +57,10 @@
         </label>
 
         <div class="segment">
-            <button type="button" class:active={side === 'buy'} on:click={() => (side = 'buy')}>
+            <button type="button" class:active={side === 'buy'} on:click={() => setSide('buy')}>
                 Лонг
             </button>
-            <button type="button" class:active={side === 'sell'} on:click={() => (side = 'sell')}>
+            <button type="button" class:active={side === 'sell'} on:click={() => setSide('sell')}>
                 Шорт
             </button>
         </div>
@@ -62,38 +77,25 @@
     </div>
 
     {#if error}
-        <div class="error">{error}</div>
+        <Card variant="error" className="inner-card">
+            <div class="error-text">{error}</div>
+        </Card>
     {/if}
 
     {#if success}
-        <div class="success">{success}</div>
+        <Card variant="success" className="inner-card">
+            <div class="success-text">{success}</div>
+        </Card>
     {/if}
 
-    <button class="primary wide" on:click={submit} disabled={loading}>
-        {loading ? 'Отправка...' : 'Открыть тестовую сделку'}
-    </button>
-</section>
+    <div class="top-gap">
+        <Button variant="primary" wide on:click={submit} disabled={loading}>
+            {loading ? 'Отправка...' : 'Открыть тестовую сделку'}
+        </Button>
+    </div>
+</Card>
 
 <style>
-    .card {
-        border-radius: 20px;
-        padding: 14px;
-        background: #111827;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .title {
-        font-size: 14px;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.92);
-    }
-
-    .sub {
-        margin-top: 2px;
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.45);
-    }
-
     .form-grid {
         display: grid;
         gap: 10px;
@@ -105,15 +107,15 @@
         flex-direction: column;
         gap: 6px;
         font-size: 13px;
-        color: rgba(255, 255, 255, 0.82);
+        color: var(--text-soft);
     }
 
     .field input {
         height: 42px;
         border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border);
         background: rgba(255, 255, 255, 0.03);
-        color: #fff;
+        color: var(--text-main);
         padding: 0 12px;
         font-size: 14px;
     }
@@ -127,55 +129,34 @@
     .segment button {
         height: 42px;
         border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border);
         background: rgba(255, 255, 255, 0.03);
-        color: rgba(255, 255, 255, 0.8);
+        color: var(--text-soft);
         font-size: 14px;
         font-weight: 600;
     }
 
     .segment button.active {
-        background: #1d4ed8;
+        background: var(--accent);
         color: #fff;
         border-color: transparent;
     }
 
-    .primary {
-        border: 0;
-        border-radius: 12px;
-        padding: 10px 14px;
-        font-size: 13px;
-        font-weight: 600;
-        background: #1d4ed8;
-        color: #fff;
-    }
-
-    .wide {
-        width: 100%;
+    .inner-card {
         margin-top: 12px;
     }
 
-    .primary:disabled {
-        opacity: 0.6;
-    }
-
-    .error,
-    .success {
-        border-radius: 14px;
-        padding: 12px;
+    .top-gap {
         margin-top: 12px;
+    }
+
+    .error-text {
         font-size: 13px;
+        color: var(--danger);
     }
 
-    .error {
-        color: #fca5a5;
-        background: rgba(239, 68, 68, 0.08);
-        border: 1px solid rgba(239, 68, 68, 0.2);
-    }
-
-    .success {
-        color: #34d399;
-        background: rgba(52, 211, 153, 0.08);
-        border: 1px solid rgba(52, 211, 153, 0.2);
+    .success-text {
+        font-size: 13px;
+        color: var(--success);
     }
 </style>
