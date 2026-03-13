@@ -7,6 +7,11 @@
     import { isAdminNow } from "$lib/auth/admin";
     import AdminMenu from "$lib/components/admin/AdminStrategyPage.svelte";
     import { hapticLight, hapticSuccess, hapticError } from '$lib/telegram/haptics';
+    import Card from '$lib/components/ui/Card.svelte';
+    import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
+    import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
+    import InfoRow from '$lib/components/ui/InfoRow.svelte';
+    import Button from '$lib/components/ui/Button.svelte';
 
     let loading = false;
     let error: string | null = null;

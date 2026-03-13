@@ -1,6 +1,13 @@
 <script lang="ts">
     import { trade, type TuneMode, type UserSettings } from '$lib/api/tradeApi';
     import { settingsStore } from '$lib/stores/settings';
+    import { hapticLight, hapticSuccess, hapticError } from '$lib/telegram/haptics';
+
+    import Card from '$lib/components/ui/Card.svelte';
+    import Button from '$lib/components/ui/Button.svelte';
+    import InfoRow from '$lib/components/ui/InfoRow.svelte';
+    import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
+    import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
 
     export let user: UserSettings | null = null;
     export let tuneMode: TuneMode = 'off';
@@ -29,11 +36,13 @@
     async function toggleBot() {
         if (!user) {
             error = 'Пользователь не загружен';
+            hapticError();
             return;
         }
 
         actionLoading = true;
         error = null;
+        hapticLight();
 
         try {
             if (botEnabled) {
@@ -44,8 +53,10 @@
 
             await settingsStore.load();
             await onReload();
+            hapticSuccess();
         } catch (e) {
             error = e instanceof Error ? e.message : 'Не удалось переключить бота';
+            hapticError();
         } finally {
             actionLoading = false;
         }
@@ -54,12 +65,15 @@
     async function toggleTune() {
         actionLoading = true;
         error = null;
+        hapticLight();
 
         try {
             const resp = await trade.toggleTuneMode();
             onTuneChanged(resp.mode ?? tuneMode);
+            hapticSuccess();
         } catch (e) {
             error = e instanceof Error ? e.message : 'Не удалось переключить режим тюна';
+            hapticError();
         } finally {
             actionLoading = false;
         }
@@ -68,111 +82,79 @@
     async function autoTuneNow() {
         actionLoading = true;
         error = null;
+        hapticLight();
 
         try {
             await trade.autoTuneNow();
             await onReload();
+            hapticSuccess();
         } catch (e) {
             error = e instanceof Error ? e.message : 'Не удалось выполнить авто-тюн';
+            hapticError();
         } finally {
             actionLoading = false;
         }
     }
 </script>
 
-<section class="card">
-    <div class="section-header">
-        <div>
-            <div class="title">Управление ботом</div>
-            <div class="sub">Быстрые действия для текущего пользователя</div>
-        </div>
-
-        <span class:success-badge={botEnabled} class:danger-badge={!botEnabled} class="badge">
-      {botEnabled ? 'Активен' : 'Остановлен'}
-    </span>
-    </div>
+<Card>
+    <SectionHeader
+            title="Управление ботом"
+            subtitle="Быстрые действия для текущего пользователя"
+    >
+        <svelte:fragment slot="actions">
+            <StatusBadge tone={botEnabled ? 'success' : 'danger'}>
+                {botEnabled ? 'Активен' : 'Остановлен'}
+            </StatusBadge>
+        </svelte:fragment>
+    </SectionHeader>
 
     {#if error}
-        <div class="error">{error}</div>
+        <Card variant="error" className="inner-card">
+            <div class="error-text">{error}</div>
+        </Card>
     {/if}
 
     <div class="rows">
-        <div class="row">
-            <span>Имя</span>
-            <span>{user?.name || '—'}</span>
-        </div>
+        <InfoRow>
+            <span slot="label">Имя</span>
+            <span slot="value">{user?.name || '—'}</span>
+        </InfoRow>
 
-        <div class="row">
-            <span>Premium</span>
-            <span class:profit={premium}>{premium ? 'Да' : 'Нет'}</span>
-        </div>
+        <InfoRow>
+            <span slot="label">Premium</span>
+            <span slot="value" class:profit={premium}>{premium ? 'Да' : 'Нет'}</span>
+        </InfoRow>
 
-        <div class="row">
-            <span>Режим тюна</span>
-            <span>{prettyTuneMode(tuneMode)}</span>
-        </div>
+        <InfoRow>
+            <span slot="label">Режим тюна</span>
+            <span slot="value">{prettyTuneMode(tuneMode)}</span>
+        </InfoRow>
     </div>
 
     <div class="actions">
-        <button class="primary" on:click={toggleBot} disabled={actionLoading || !user}>
+        <Button variant="primary" on:click={toggleBot} disabled={actionLoading || !user}>
             {actionLoading ? '...' : botEnabled ? 'Остановить бота' : 'Запустить бота'}
-        </button>
+        </Button>
 
-        <button class="secondary" on:click={toggleTune} disabled={actionLoading}>
+        <Button variant="secondary" on:click={toggleTune} disabled={actionLoading}>
             Переключить тюн
-        </button>
+        </Button>
     </div>
 
-    <button class="ghost wide" on:click={autoTuneNow} disabled={actionLoading}>
-        Выполнить авто-тюн сейчас
-    </button>
-</section>
+    <div class="wide-action">
+        <Button variant="ghost" wide on:click={autoTuneNow} disabled={actionLoading}>
+            Выполнить авто-тюн сейчас
+        </Button>
+    </div>
+</Card>
 
 <style>
-    .card {
-        border-radius: 20px;
-        padding: 14px;
-        background: #111827;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .section-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 12px;
-        margin-bottom: 12px;
-    }
-
-    .title {
-        font-size: 14px;
-        font-weight: 600;
-        color: rgba(255, 255, 255, 0.92);
-    }
-
-    .sub {
-        margin-top: 2px;
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.45);
-    }
-
     .rows {
         display: flex;
         flex-direction: column;
         gap: 8px;
         margin-top: 12px;
-    }
-
-    .row {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        border-radius: 14px;
-        padding: 12px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        font-size: 13px;
-        color: rgba(255, 255, 255, 0.82);
     }
 
     .actions {
@@ -182,70 +164,20 @@
         margin-top: 12px;
     }
 
-    .primary,
-    .secondary,
-    .ghost {
-        border-radius: 12px;
-        padding: 10px 14px;
-        font-size: 13px;
-        font-weight: 600;
-    }
-
-    .primary {
-        border: 0;
-        background: #1d4ed8;
-        color: #fff;
-    }
-
-    .secondary,
-    .ghost {
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: rgba(255, 255, 255, 0.03);
-        color: rgba(255, 255, 255, 0.8);
-    }
-
-    .wide {
-        width: 100%;
+    .wide-action {
         margin-top: 8px;
     }
 
-    .primary:disabled,
-    .secondary:disabled,
-    .ghost:disabled {
-        opacity: 0.6;
+    .inner-card {
+        margin-top: 12px;
     }
 
-    .badge {
-        display: inline-flex;
-        align-items: center;
-        border-radius: 999px;
-        padding: 5px 10px;
-        font-size: 11px;
-    }
-
-    .success-badge {
-        color: #34d399;
-        background: rgba(52, 211, 153, 0.1);
-        border: 1px solid rgba(52, 211, 153, 0.18);
-    }
-
-    .danger-badge {
+    .error-text {
+        font-size: 13px;
         color: #fca5a5;
-        background: rgba(239, 68, 68, 0.08);
-        border: 1px solid rgba(239, 68, 68, 0.18);
     }
 
     .profit {
         color: #34d399;
-    }
-
-    .error {
-        border-radius: 14px;
-        padding: 12px;
-        margin-top: 12px;
-        font-size: 13px;
-        color: #fca5a5;
-        background: rgba(239, 68, 68, 0.08);
-        border: 1px solid rgba(239, 68, 68, 0.2);
     }
 </style>
