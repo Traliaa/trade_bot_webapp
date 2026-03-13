@@ -28,26 +28,18 @@
     .title {
         font-size: 14px;
         font-weight: 600;
-        color: var(--text-main);
+        color: var(--text-main, #e5e7eb);
     }
 
     .sub {
         margin-top: 2px;
         font-size: 12px;
-        color: var(--text-muted);
+        color: var(--text-muted, #6b7280);
     }
 
     .actions {
         display: flex;
         gap: 8px;
         align-items: center;
-
-    }
-    .title {
-        color: var(--text-main);
-    }
-
-    .subtitle {
-        color: var(--text-muted);
     }
 </style>

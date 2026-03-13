@@ -159,20 +159,26 @@
         />
 
         <div class="stats-grid">
-            <Card padded={true} className="mini-card">
-                <div class="stat-label">Винрейт</div>
-                <div class="mini-value">{winrate}</div>
-            </Card>
+            <div class="mini-card">
+                <Card padded={true}>
+                    <div class="stat-label">Винрейт</div>
+                    <div class="mini-value">{winrate}</div>
+                </Card>
+            </div>
 
-            <Card padded={true} className="mini-card">
-                <div class="stat-label">Средний R</div>
-                <div class="mini-value">{avgR}</div>
-            </Card>
+            <div class="mini-card">
+                <Card padded={true}>
+                    <div class="stat-label">Средний R</div>
+                    <div class="mini-value">{avgR}</div>
+                </Card>
+            </div>
 
-            <Card padded={true} className="mini-card">
-                <div class="stat-label">Сделок</div>
-                <div class="mini-value">{totalTrades}</div>
-            </Card>
+            <div class="mini-card">
+                <Card padded={true}>
+                    <div class="stat-label">Сделок</div>
+                    <div class="mini-value">{totalTrades}</div>
+                </Card>
+            </div>
         </div>
     </Card>
 

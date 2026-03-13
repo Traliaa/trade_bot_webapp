@@ -1,4 +1,5 @@
 <script lang="ts">
+    import '../app.css';
     import { onMount } from "svelte";
     import { initTelegram } from "$lib/stores/telegram";
     import { loginViaTelegram } from "$lib/auth/login";

@@ -3,12 +3,21 @@
     import { settingsStore } from '$lib/stores/settings';
     import type { UserSettings } from '$lib/api/tradeApi';
     import { hapticLight, hapticSuccess, hapticError, hapticSelection } from '$lib/telegram/haptics';
-
+    import SegmentedTabs, { type SegmentedTabItem } from '$lib/components/ui/SegmentedTabs.svelte';
     import Card from '$lib/components/ui/Card.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
 
     let tab: 'trading' | 'limits' | 'trailing' | 'features' = 'trading';
+    let selectedTab: typeof tab = tab;
+
+    const strategyTabs: SegmentedTabItem[] = [
+        { key: 'trading', label: 'Торговля' },
+        { key: 'trailing', label: 'Сопровождение' },
+        { key: 'limits', label: 'Лимиты' },
+        { key: 'features', label: 'Доп. функции' }
+    ];
+
     let draftUser: UserSettings | null = null;
     let saveError: string | null = null;
     let saveSuccess = false;
@@ -32,6 +41,10 @@
     $: trading = settings?.TradingSettings;
     $: trailing = settings?.TrailingConfig;
     $: features = settings?.FeatureFlags;
+
+    $: if (selectedTab !== tab) {
+        setTab(selectedTab);
+    }
 
     function setTab(next: typeof tab) {
         tab = next;
@@ -91,21 +104,30 @@
         </div>
 
         <div class="top-actions">
-            <Button variant="ghost" on:click={resetDraft} disabled={$settingsStore.loading || $settingsStore.saving || !draftUser}>
+            <Button
+                    variant="ghost"
+                    on:click={resetDraft}
+                    disabled={$settingsStore.loading || $settingsStore.saving || !draftUser}
+            >
                 Сбросить
             </Button>
-            <Button variant="primary" on:click={save} disabled={$settingsStore.loading || $settingsStore.saving || !draftUser}>
+
+            <Button
+                    variant="primary"
+                    on:click={save}
+                    disabled={$settingsStore.loading || $settingsStore.saving || !draftUser}
+            >
                 {$settingsStore.saving ? 'Сохраняем...' : 'Сохранить'}
             </Button>
         </div>
     </div>
 
-    <div class="tabs">
-        <button class:active={tab === 'trading'} on:click={() => setTab('trading')}>Торговля</button>
-        <button class:active={tab === 'limits'} on:click={() => setTab('limits')}>Лимиты</button>
-        <button class:active={tab === 'trailing'} on:click={() => setTab('trailing')}>Сопровождение</button>
-        <button class:active={tab === 'features'} on:click={() => setTab('features')}>Доп. функции</button>
-    </div>
+    <SegmentedTabs
+            bind:value={selectedTab}
+            items={strategyTabs}
+            columns={4}
+            size="sm"
+    />
 
     {#if saveError}
         <Card variant="error">
@@ -125,6 +147,7 @@
         <Card variant="error">
             <div class="title">Ошибка загрузки</div>
             <div class="sub">{$settingsStore.error}</div>
+
             <div class="top-gap">
                 <Button variant="primary" on:click={reload}>Повторить</Button>
             </div>
@@ -198,12 +221,20 @@
 
                 <label class="field">
                     <span>Таймаут подтверждения</span>
-                    <input type="text" bind:value={trading.confirm_timeout} placeholder="30s / 10m / 1h" />
+                    <input
+                            type="text"
+                            bind:value={trading.confirm_timeout}
+                            placeholder="30s / 10m / 1h"
+                    />
                 </label>
 
                 <label class="field">
                     <span>Пауза по инструменту</span>
-                    <input type="text" bind:value={trading.cooldown_per_symbol} placeholder="30s / 10m / 1h" />
+                    <input
+                            type="text"
+                            bind:value={trading.cooldown_per_symbol}
+                            placeholder="30s / 10m / 1h"
+                    />
                 </label>
             </div>
         </Card>
@@ -358,13 +389,13 @@
     .page-title {
         font-size: 18px;
         font-weight: 700;
-        color: #fff;
+        color: var(--text-main, #e5e7eb);
     }
 
     .page-sub {
         margin-top: 2px;
         font-size: 12px;
-        color: rgba(255, 255, 255, 0.45);
+        color: var(--text-muted, rgba(255, 255, 255, 0.45));
     }
 
     .top-actions {
@@ -372,32 +403,20 @@
         gap: 8px;
     }
 
-    .tabs {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        gap: 6px;
-        padding: 4px;
-        border-radius: 16px;
-        background: #111827;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .tabs button {
-        border: 0;
-        border-radius: 12px;
-        padding: 10px 6px;
-        background: transparent;
-        color: rgba(255, 255, 255, 0.6);
-        font-size: 12px;
-    }
-
-    .tabs button.active {
-        background: #1d4ed8;
-        color: #fff;
-    }
-
     .top-gap {
         margin-top: 12px;
+    }
+
+    .title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-main, #e5e7eb);
+    }
+
+    .sub {
+        margin-top: 2px;
+        font-size: 12px;
+        color: var(--text-muted, rgba(255, 255, 255, 0.45));
     }
 
     .form-grid {
@@ -412,16 +431,16 @@
         flex-direction: column;
         gap: 6px;
         font-size: 13px;
-        color: rgba(255, 255, 255, 0.82);
+        color: var(--text-soft, rgba(255, 255, 255, 0.82));
     }
 
     .field input[type='text'],
     .field input[type='number'] {
         height: 42px;
         border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
         background: rgba(255, 255, 255, 0.03);
-        color: #fff;
+        color: var(--text-main, #fff);
         padding: 0 12px;
         font-size: 14px;
     }
@@ -433,7 +452,7 @@
         border-radius: 14px;
         padding: 12px;
         background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
     }
 
     .group {
@@ -441,13 +460,13 @@
         border-radius: 16px;
         padding: 12px;
         background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
     }
 
     .group-title {
         font-size: 14px;
         font-weight: 600;
-        color: #fff;
+        color: var(--text-main, #fff);
     }
 
     .toggle-list {
@@ -465,8 +484,8 @@
         border-radius: 14px;
         padding: 12px;
         background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
         font-size: 14px;
-        color: rgba(255, 255, 255, 0.85);
+        color: var(--text-soft, rgba(255, 255, 255, 0.85));
     }
 </style>
