@@ -37,4 +37,11 @@
     text-align: right;
     color: var(--text-main);
   }
+  .label {
+    color: var(--text-soft);
+  }
+
+  .value {
+    color: var(--text-main);
+  }
 </style>

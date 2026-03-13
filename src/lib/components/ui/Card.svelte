@@ -10,12 +10,13 @@
 
 <style>
     .card {
-        border-radius: 20px;
+        background: var(--bg-card);
+        border-radius: 16px;
+        padding: 14px;
         border: 1px solid var(--border);
-        background: var(--card-bg);
-        box-shadow: var(--shadow-soft);
-    }
 
+        color: var(--text-main);
+    }
     .padded {
         padding: 14px;
     }

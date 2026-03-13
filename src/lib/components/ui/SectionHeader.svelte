@@ -41,5 +41,13 @@
         display: flex;
         gap: 8px;
         align-items: center;
+
+    }
+    .title {
+        color: var(--text-main);
+    }
+
+    .subtitle {
+        color: var(--text-muted);
     }
 </style>
