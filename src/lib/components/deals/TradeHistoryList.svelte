@@ -1,7 +1,6 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { historyStore } from '$lib/stores/history';
-    import type { TradeRecord } from '$lib/api/tradeApi';
     import { startVisibilityPoller } from '$lib/utils/visibilityPoller';
     import { hapticLight, hapticSelection } from '$lib/telegram/haptics';
 
@@ -9,6 +8,8 @@
     import Button from '$lib/components/ui/Button.svelte';
     import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
     import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
+    import TradeStatsBlock from './TradeStatsBlock.svelte';
+    import type { UiTrade } from '$lib/types/trade';
 
     let selectedTradeIndex = 0;
 
@@ -30,59 +31,46 @@
         await historyStore.loadAll(20);
     }
 
-    function isLong(side?: string): boolean {
-        const s = (side ?? '').toLowerCase();
-        return !(s.includes('short') || s.includes('sell') || s.includes('шорт'));
-    }
-
-    function isProfit(value?: number): boolean {
-        return (value ?? 0) >= 0;
-    }
-
-    function formatPrice(v?: number): string {
+    function formatNum(v?: number | null, digits = 4): string {
         if (typeof v !== 'number' || Number.isNaN(v)) return '—';
-        return v.toLocaleString('ru-RU', { maximumFractionDigits: 6 });
+
+        return v.toLocaleString('ru-RU', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: digits
+        });
     }
 
-    function formatPct(v?: number): string {
+    function formatMoney(v?: number | null, digits = 2): string {
+        if (typeof v !== 'number' || Number.isNaN(v)) return '—';
+
+        return `${v.toLocaleString('ru-RU', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: digits
+        })} USDT`;
+    }
+
+    function formatPct(v?: number | null, digits = 2): string {
         if (typeof v !== 'number' || Number.isNaN(v)) return '—';
         const sign = v > 0 ? '+' : '';
-        return `${sign}${v.toFixed(2)}%`;
+        return `${sign}${v.toFixed(digits)}%`;
     }
 
-    function formatRR(v?: number): string {
-        if (typeof v !== 'number' || Number.isNaN(v)) return '—';
-        return `${v.toFixed(2)}R`;
-    }
+    function formatDateTime(value?: string | null): string {
+        if (!value) return '—';
 
-    function formatDate(v?: string): string {
-        if (!v) return '—';
-        const d = new Date(v);
-        if (Number.isNaN(d.getTime())) return v;
+        const d = new Date(value);
+        if (Number.isNaN(d.getTime())) return '—';
 
         return d.toLocaleString('ru-RU', {
             day: '2-digit',
             month: '2-digit',
-            year: 'numeric',
             hour: '2-digit',
             minute: '2-digit'
         });
     }
 
-    function tradePair(trade: TradeRecord): string {
-        return trade.symbol ?? '—';
-    }
-
-    function tradeSide(trade: TradeRecord): 'Лонг' | 'Шорт' {
-        return isLong(trade.side) ? 'Лонг' : 'Шорт';
-    }
-
-    function tradeStatus(trade: TradeRecord): string {
-        return trade.status ?? '—';
-    }
-
-    function tradeReason(trade: TradeRecord): string {
-        return trade.reason ?? 'Причина не указана';
+    function tradeSideTone(trade: UiTrade): 'success' | 'danger' {
+        return trade.sideTone;
     }
 
     function selectTrade(index: number) {
@@ -90,8 +78,24 @@
         hapticSelection();
     }
 
-    $: trades = $historyStore.trades ?? [];
+    function isProfit(value?: number | null): boolean {
+        return typeof value === 'number' && value > 0;
+    }
+
+    function isLoss(value?: number | null): boolean {
+        return typeof value === 'number' && value < 0;
+    }
+
+    function resultTone(value?: number | null): 'success' | 'danger' | 'default' {
+        if (isProfit(value)) return 'success';
+        if (isLoss(value)) return 'danger';
+        return 'default';
+    }
+
+    $: allTrades = $historyStore.trades ?? [];
+    $: trades = allTrades.filter((t) => t.isClosed);
     $: stats = $historyStore.stats;
+
     $: safeIndex = Math.min(selectedTradeIndex, Math.max(trades.length - 1, 0));
     $: selectedTrade = trades[safeIndex] ?? null;
 </script>
@@ -107,40 +111,12 @@
         </div>
     </Card>
 
-    {#if stats}
-        <Card>
-            <SectionHeader
-                    title="Сводка"
-                    subtitle="Краткая статистика по последним сделкам"
-            />
-
-            <div class="stats-grid">
-                <Card padded={true} className="mini-card">
-                    <div class="mini-label">Сделок</div>
-                    <div class="mini-value">{stats.total_trades ?? '—'}</div>
-                </Card>
-
-                <Card padded={true} className="mini-card">
-                    <div class="mini-label">Винрейт</div>
-                    <div class="mini-value">
-                        {typeof stats.winrate === 'number' ? `${stats.winrate.toFixed(1)}%` : '—'}
-                    </div>
-                </Card>
-
-                <Card padded={true} className="mini-card">
-                    <div class="mini-label">Средний R</div>
-                    <div class="mini-value">
-                        {typeof stats.avg_rr === 'number' ? `${stats.avg_rr.toFixed(2)}R` : '—'}
-                    </div>
-                </Card>
-            </div>
-        </Card>
-    {/if}
+    <TradeStatsBlock {stats} />
 
     <Card>
         <SectionHeader
                 title="Последние сделки"
-                subtitle={$historyStore.loading ? 'Загрузка...' : `Загружено ${trades.length} сделок`}
+                subtitle={$historyStore.loading ? 'Загрузка...' : `Загружено ${trades.length} закрытых сделок`}
         >
             <svelte:fragment slot="actions">
                 <Button variant="ghost" on:click={refresh} disabled={$historyStore.loading}>
@@ -150,49 +126,61 @@
         </SectionHeader>
 
         {#if $historyStore.error}
-            <Card variant="error" className="inner-card">
-                <div class="error-text">{$historyStore.error}</div>
-            </Card>
+            <div class="inner-card">
+                <Card variant="error">
+                    <div class="error-text">{$historyStore.error}</div>
+                </Card>
+            </div>
         {:else if $historyStore.loading && trades.length === 0}
-            <Card className="inner-card">
-                <div class="empty">Загружаем историю...</div>
-            </Card>
+            <div class="inner-card">
+                <Card>
+                    <div class="empty">Загружаем историю...</div>
+                </Card>
+            </div>
         {:else if trades.length === 0}
-            <Card className="inner-card">
-                <div class="empty">История сделок пуста</div>
-            </Card>
+            <div class="inner-card">
+                <Card>
+                    <div class="empty">История сделок пуста</div>
+                </Card>
+            </div>
         {:else}
             <div class="history-list">
-                {#each trades as item, index}
+                {#each trades as item, index (item.id)}
                     <button
                             type="button"
                             class:selected={safeIndex === index}
                             class="history-row"
                             on:click={() => selectTrade(index)}
                     >
-                        <div>
+                        <div class="left">
                             <div class="top-row">
-                                <span class="pair">{tradePair(item)}</span>
+                                <span class="pair">{item.symbol}</span>
 
-                                <StatusBadge tone={tradeSide(item) === 'Лонг' ? 'success' : 'danger'}>
-                                    {tradeSide(item)}
+                                <StatusBadge tone={tradeSideTone(item)}>
+                                    {item.sideLabel}
                                 </StatusBadge>
+
+                                <span class="tf-tag">{item.timeframe}</span>
                             </div>
 
-                            <div class="sub">{formatDate(item.closed_at ?? item.opened_at)}</div>
-                            <div class="status">{tradeStatus(item)}</div>
+                            <div class="sub-text">{formatDateTime(item.exitAt ?? item.updatedAt ?? item.entryAt)}</div>
+                            <div class="status">{item.closeReason || item.status}</div>
                         </div>
 
                         <div class="right">
                             <div
-                                    class:profit={isProfit(item.pnl_pct)}
-                                    class:loss={!isProfit(item.pnl_pct)}
                                     class="result"
+                                    class:profit={isProfit(item.pnlPct)}
+                                    class:loss={isLoss(item.pnlPct)}
                             >
-                                {formatPct(item.pnl_pct)}
+                                {formatPct(item.pnlPct)}
                             </div>
 
-                            <div class="sub">{formatRR(item.rr)}</div>
+                            <div class="sub-text">
+                                {item.rMultiple != null
+                                    ? `${item.rMultiple > 0 ? '+' : ''}${item.rMultiple.toFixed(2)}R`
+                                    : formatMoney(item.pnl)}
+                            </div>
                         </div>
                     </button>
                 {/each}
@@ -204,93 +192,201 @@
         <Card>
             <SectionHeader
                     title="Детали сделки"
-                    subtitle={`${tradePair(selectedTrade)} · ${formatDate(selectedTrade.closed_at ?? selectedTrade.opened_at)}`}
+                    subtitle={`${selectedTrade.symbol} · ${formatDateTime(selectedTrade.exitAt ?? selectedTrade.updatedAt ?? selectedTrade.entryAt)}`}
             >
                 <svelte:fragment slot="actions">
-                    <StatusBadge tone={tradeSide(selectedTrade) === 'Лонг' ? 'success' : 'danger'}>
-                        {tradeSide(selectedTrade)}
+                    <StatusBadge tone={tradeSideTone(selectedTrade)}>
+                        {selectedTrade.sideLabel}
                     </StatusBadge>
                 </svelte:fragment>
             </SectionHeader>
 
             <div class="details-result">
                 <div
-                        class:profit={isProfit(selectedTrade.pnl_pct)}
-                        class:loss={!isProfit(selectedTrade.pnl_pct)}
                         class="result big"
+                        class:profit={isProfit(selectedTrade.pnlPct)}
+                        class:loss={isLoss(selectedTrade.pnlPct)}
                 >
-                    {formatPct(selectedTrade.pnl_pct)}
+                    {formatPct(selectedTrade.pnlPct)}
                 </div>
-                <div class="sub">{formatRR(selectedTrade.rr)}</div>
+
+                <div class="sub-text">
+                    {formatMoney(selectedTrade.pnl)} ·
+                    {selectedTrade.rMultiple != null
+                        ? ` ${selectedTrade.rMultiple > 0 ? '+' : ''}${selectedTrade.rMultiple.toFixed(2)}R`
+                        : ' —'}
+                </div>
             </div>
 
             <div class="grid2">
-                <Card padded={true} className="mini-card">
-                    <div class="mini-label">Вход</div>
-                    <div class="mini-value">{formatPrice(selectedTrade.entry_price)}</div>
-                </Card>
+                <div class="mini-card">
+                    <Card padded={true}>
+                        <div class="mini-label">Вход</div>
+                        <div class="mini-value">{formatNum(selectedTrade.entryPrice, 4)}</div>
+                    </Card>
+                </div>
 
-                <Card padded={true} className="mini-card">
-                    <div class="mini-label">Выход</div>
-                    <div class="mini-value">{formatPrice(selectedTrade.exit_price)}</div>
-                </Card>
+                <div class="mini-card">
+                    <Card padded={true}>
+                        <div class="mini-label">Выход</div>
+                        <div class="mini-value">{formatNum(selectedTrade.exitPrice, 4)}</div>
+                    </Card>
+                </div>
 
-                <Card padded={true} className="mini-card">
-                    <div class="mini-label">Размер</div>
-                    <div class="mini-value">{formatPrice(selectedTrade.qty)}</div>
-                </Card>
+                <div class="mini-card">
+                    <Card padded={true}>
+                        <div class="mini-label">Размер</div>
+                        <div class="mini-value">{formatNum(selectedTrade.entrySize, 4)}</div>
+                    </Card>
+                </div>
 
-                <Card padded={true} className="mini-card">
-                    <div class="mini-label">Статус</div>
-                    <div class="mini-value">{tradeStatus(selectedTrade)}</div>
+                <div class="mini-card">
+                    <Card padded={true}>
+                        <div class="mini-label">Статус</div>
+                        <div class="mini-value">{selectedTrade.status}</div>
+                    </Card>
+                </div>
+
+                <div class="mini-card">
+                    <Card padded={true}>
+                        <div class="mini-label">SL</div>
+                        <div class="mini-value">{formatNum(selectedTrade.stopLoss, 4)}</div>
+                    </Card>
+                </div>
+
+                <div class="mini-card">
+                    <Card padded={true}>
+                        <div class="mini-label">TP</div>
+                        <div class="mini-value">{formatNum(selectedTrade.takeProfit, 4)}</div>
+                    </Card>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="summary-head">
+                    <span>Сводка сделки</span>
+                    <span>{selectedTrade.closeReason || selectedTrade.status}</span>
+                </div>
+
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <span class="summary-label">Вход</span>
+                        <span class="summary-value">{formatDateTime(selectedTrade.entryAt)}</span>
+                    </div>
+
+                    <div class="summary-item">
+                        <span class="summary-label">Выход</span>
+                        <span class="summary-value">{formatDateTime(selectedTrade.exitAt)}</span>
+                    </div>
+
+                    <div class="summary-item">
+                        <span class="summary-label">PnL</span>
+                        <span
+                                class="summary-value"
+                                class:profit={isProfit(selectedTrade.pnl)}
+                                class:loss={isLoss(selectedTrade.pnl)}
+                        >
+                {formatMoney(selectedTrade.pnl)}
+            </span>
+                    </div>
+
+                    <div class="summary-item">
+                        <span class="summary-label">R-множитель</span>
+                        <span class="summary-value">
+                {selectedTrade.rMultiple != null
+                    ? `${selectedTrade.rMultiple > 0 ? '+' : ''}${selectedTrade.rMultiple.toFixed(2)}R`
+                    : '—'}
+            </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="inner-card mini-block">
+                <Card>
+                    <div class="mini-label">Причина выхода</div>
+                    <div class="reason-text">{selectedTrade.closeReason || '—'}</div>
                 </Card>
             </div>
 
-            <div class="scheme-card">
-                <div class="scheme-head">
-                    <span>Схема сделки</span>
-                    <span>{tradeStatus(selectedTrade)}</span>
-                </div>
+            <div class="inner-card mini-block">
+                <Card>
+                    <div class="mini-label">Флаги сопровождения</div>
 
-                <div class="scheme-line">
-                    <div class="line"></div>
-                    <div class="dot entry"></div>
-                    <div class="dot middle"></div>
-                    <div
-                            class:profit-dot={isProfit(selectedTrade.pnl_pct)}
-                            class:loss-dot={!isProfit(selectedTrade.pnl_pct)}
-                            class="dot exit"
-                    ></div>
+                    <div class="partials-list">
+                        {#if selectedTrade.movedToBE}
+                            <div class="partial-item">Перевод в безубыток</div>
+                        {/if}
 
-                    <span class="label-entry">Вход</span>
-                    <span class="label-middle">Сопровождение</span>
-                    <span class="label-exit">Выход</span>
-                </div>
+                        {#if selectedTrade.lockedProfit}
+                            <div class="partial-item">Фиксация прибыли</div>
+                        {/if}
+
+                        {#if selectedTrade.tookPartial}
+                            <div class="partial-item">
+                                Частичные закрытия{selectedTrade.partialCount > 0 ? `: ${selectedTrade.partialCount}` : ''}
+                            </div>
+                        {/if}
+
+                        {#if selectedTrade.timeStopTriggered}
+                            <div class="partial-item">Сработал time stop</div>
+                        {/if}
+
+                        {#if !selectedTrade.movedToBE && !selectedTrade.lockedProfit && !selectedTrade.tookPartial && !selectedTrade.timeStopTriggered}
+                            <div class="partial-empty">Дополнительных событий сопровождения не было</div>
+                        {/if}
+                    </div>
+                </Card>
             </div>
-
-            <Card className="inner-card mini-block">
-                <div class="mini-label">Причина выхода</div>
-                <div class="reason-text">{tradeReason(selectedTrade)}</div>
-            </Card>
-
-            <Card className="inner-card mini-block">
-                <div class="mini-label">Частичные фиксации</div>
-
-                <div class="partials-list">
-                    {#if Array.isArray(selectedTrade.partials) && selectedTrade.partials.length > 0}
-                        {#each selectedTrade.partials as partial}
-                            <div class="partial-item">{partial}</div>
-                        {/each}
-                    {:else}
-                        <div class="partial-empty">Частичных закрытий не было</div>
-                    {/if}
-                </div>
-            </Card>
         </Card>
     {/if}
 </div>
 
 <style>
+    .summary-card {
+        margin-top: 12px;
+        border-radius: 14px;
+        border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+        background: var(--bg-card, #0b1220);
+        padding: 12px;
+    }
+
+    .summary-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-faint, rgba(255, 255, 255, 0.4));
+    }
+
+    .summary-grid {
+        margin-top: 12px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+
+    .summary-item {
+        border-radius: 12px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid var(--border, rgba(255,255,255,0.08));
+        padding: 10px 12px;
+    }
+
+    .summary-label {
+        display: block;
+        font-size: 11px;
+        color: var(--text-muted, #6b7280);
+    }
+
+    .summary-value {
+        display: block;
+        margin-top: 4px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-main, #fff);
+    }
     .stack {
         display: flex;
         flex-direction: column;
@@ -318,19 +414,30 @@
     .title {
         font-size: 14px;
         font-weight: 600;
-        color: rgba(255, 255, 255, 0.92);
+        color: var(--text-main, #e5e7eb);
     }
 
     .sub {
         margin-top: 2px;
         font-size: 12px;
-        color: rgba(255, 255, 255, 0.45);
+        color: var(--text-muted, #6b7280);
+    }
+
+    .left {
+        min-width: 0;
+        flex: 1;
+    }
+
+    .sub-text {
+        margin-top: 2px;
+        font-size: 12px;
+        color: var(--text-muted, #6b7280);
     }
 
     .status {
         margin-top: 4px;
         font-size: 11px;
-        color: rgba(255, 255, 255, 0.55);
+        color: var(--text-soft, rgba(255, 255, 255, 0.55));
     }
 
     .history-list,
@@ -350,7 +457,7 @@
         border-radius: 16px;
         background: rgba(255, 255, 255, 0.03);
         padding: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
         text-align: left;
     }
 
@@ -369,17 +476,29 @@
     .pair {
         font-size: 14px;
         font-weight: 600;
-        color: #fff;
+        color: var(--text-main, #fff);
+    }
+
+    .tf-tag {
+        padding: 3px 7px;
+        border-radius: 999px;
+        font-size: 10px;
+        color: var(--text-muted, #94a3b8);
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+        line-height: 1;
     }
 
     .right,
     .details-result {
         text-align: right;
+        flex-shrink: 0;
     }
 
     .result {
         font-size: 14px;
         font-weight: 700;
+        color: var(--text-main, #e5e7eb);
     }
 
     .result.big {
@@ -387,46 +506,41 @@
     }
 
     .profit {
-        color: #34d399;
+        color: var(--success, #34d399);
     }
 
     .loss {
-        color: #fb7185;
+        color: var(--danger, #fb7185);
     }
 
-    .stats-grid,
     .grid2 {
         display: grid;
         grid-template-columns: repeat(2, 1fr);
         gap: 8px;
-    }
-
-    .stats-grid {
-        grid-template-columns: repeat(3, 1fr);
         margin-top: 12px;
     }
 
     .mini-card {
-        background: rgba(255, 255, 255, 0.03);
+        background: transparent;
     }
 
     .mini-label {
         font-size: 11px;
-        color: rgba(255, 255, 255, 0.45);
+        color: var(--text-muted, #6b7280);
     }
 
     .mini-value {
         margin-top: 4px;
         font-size: 14px;
         font-weight: 600;
-        color: #fff;
+        color: var(--text-main, #fff);
     }
 
     .scheme-card {
         margin-top: 12px;
         border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        background: #0b1220;
+        border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+        background: var(--bg-card, #0b1220);
         padding: 12px;
     }
 
@@ -437,7 +551,7 @@
         font-size: 10px;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: rgba(255, 255, 255, 0.4);
+        color: var(--text-faint, rgba(255, 255, 255, 0.4));
     }
 
     .scheme-line {
@@ -483,6 +597,7 @@
         right: 10%;
         width: 12px;
         height: 12px;
+        background: #94a3b8;
     }
 
     .dot.exit.profit-dot {
@@ -498,7 +613,7 @@
     .label-exit {
         position: absolute;
         font-size: 10px;
-        color: rgba(255, 255, 255, 0.45);
+        color: var(--text-muted, rgba(255, 255, 255, 0.45));
     }
 
     .label-entry {
@@ -521,36 +636,36 @@
     }
 
     .mini-block {
-        background: rgba(255, 255, 255, 0.03);
+        background: transparent;
     }
 
     .reason-text {
         margin-top: 6px;
         font-size: 13px;
         line-height: 1.45;
-        color: rgba(255, 255, 255, 0.86);
+        color: var(--text-soft, rgba(255, 255, 255, 0.86));
     }
 
     .partial-item,
     .partial-empty {
         border-radius: 12px;
         padding: 10px 12px;
-        background: #0b1220;
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: var(--bg-card, #0b1220);
+        border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
         font-size: 13px;
     }
 
     .partial-item {
-        color: rgba(255, 255, 255, 0.82);
+        color: var(--text-soft, rgba(255, 255, 255, 0.82));
     }
 
     .partial-empty {
-        color: rgba(255, 255, 255, 0.5);
+        color: var(--text-muted, rgba(255, 255, 255, 0.5));
     }
 
     .empty {
         font-size: 13px;
-        color: rgba(255, 255, 255, 0.55);
+        color: var(--text-muted, rgba(255, 255, 255, 0.55));
     }
 
     .error-text {

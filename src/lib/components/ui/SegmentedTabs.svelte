@@ -1,8 +1,5 @@
 <script lang="ts">
-    export type SegmentedTabItem = {
-        key: string;
-        label: string;
-    };
+
 
     export let value = '';
     export let items: SegmentedTabItem[] = [];

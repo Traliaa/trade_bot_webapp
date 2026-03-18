@@ -1,5 +1,4 @@
 <script lang="ts">
-    import { trade, type TuneMode, type UserSettings } from '$lib/api/tradeApi';
     import { settingsStore } from '$lib/stores/settings';
     import { hapticLight, hapticSuccess, hapticError } from '$lib/telegram/haptics';
 
@@ -8,6 +7,9 @@
     import InfoRow from '$lib/components/ui/InfoRow.svelte';
     import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
     import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
+    import {adminTradeApi, type TuneMode} from "$lib/api/adminTradeApi";
+    import {trade, type UserSettings} from "$lib/api/tradeApi";
+
 
     export let user: UserSettings | null = null;
     export let tuneMode: TuneMode = 'off';
@@ -68,7 +70,7 @@
         hapticLight();
 
         try {
-            const resp = await trade.toggleTuneMode();
+            const resp = await adminTradeApi.toggleTuneMode();
             onTuneChanged(resp.mode ?? tuneMode);
             hapticSuccess();
         } catch (e) {
@@ -85,7 +87,7 @@
         hapticLight();
 
         try {
-            await trade.autoTuneNow();
+            await adminTradeApi.autoTuneNow();
             await onReload();
             hapticSuccess();
         } catch (e) {

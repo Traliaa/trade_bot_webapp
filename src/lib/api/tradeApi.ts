@@ -1,48 +1,127 @@
 import { api } from "$lib/api/client";
 
-export type ISODateTime = string;
 
-export type TuneMode = "off" | "safe" | "aggressive" | string;
-export type TuneDecision = unknown;
-export type RuntimeTuning = unknown;
-export type RejectSnapshot = unknown;
 
-export type OpenPosition = {
-    Symbol?: string;
-    Side?: string;
-    Entry?: number;
-    Qty?: number;
-    Size?: number;
-    EntryPrice?: number;
-    LastPrice?: number;
-    UnrealizedPnlPct?: number;
-    Updated?: string;
-    HoldVol?: number;
-    HoldAvgPrice?: number;
+export type AccountSnapshot = {
+    TotalEquity: number;
+    AvailableBalance: number;
+    FrozenBalance: number;
+    UnrealizedPnL: number;
+    RealizedPnL: number;
+    UpdatedAt: string;
+};
+
+export type TradePayload = {
+    pos_side: string;
+    side: string;
+
+    entry_price: number;
+    entry_size: number;
+    stop_loss: number;
+    take_profit: number;
+    leverage: number;
+
+    open_order_id?: string;
+    algo_id?: string;
+
+    exit_price?: number;
+    exit_size?: number;
+
+    realized_pnl?: number;
+    realized_pnl_pct?: number;
+    exchange_upl_ratio?: number;
+
+    current_price?: number;
+    unrealized_pnl?: number;
+    unrealized_pnl_pct?: number;
+
+    risk_dist?: number;
+    r_multiple?: number;
+    duration_sec?: number;
+
+    moved_to_be?: boolean;
+    locked_profit?: boolean;
+    took_partial?: boolean;
+    partial_count?: number;
+    time_stop_triggered?: boolean;
+
+    mfe_price?: number;
+    mae_price?: number;
+    mfe_r?: number;
+    mae_r?: number;
 };
 
 export type TradeRecord = {
-    symbol?: string;
-    side?: string;
-    entry_price?: number;
-    exit_price?: number;
-    qty?: number;
-    pnl_pct?: number;
-    rr?: number;
-    opened_at?: string;
-    closed_at?: string;
-    status?: string;
-    reason?: string;
-    partials?: string[];
-} & Record<string, any>;
+    guid: string;
+    user_id: number;
+    inst_id: string;
+    strategy: string;
+    timeframe: string;
+    status: string;
+    close_reason: string;
+    entry_at: string;
+    exit_at?: string;
+    payload: TradePayload;
+    created_at: string;
+    updated_at: string;
+};
+
+export type StatusResponse = {
+    bot_running: boolean;
+    account: AccountSnapshot;
+    open_trades: TradeRecord[];
+};
 
 export type TradeStats = {
-    total_trades?: number;
-    winrate?: number;
-    avg_rr?: number;
-    pnl_day?: number;
-    pnl_day_pct?: number;
-} & Record<string, any>;
+    total_trades: number;
+    open_trades: number;
+    closed_trades: number;
+
+    wins: number;
+    losses: number;
+    breakeven_trades: number;
+    win_rate: number;
+
+    total_pnl: number;
+    avg_pnl: number;
+    profit_factor: number;
+
+    total_r: number;
+    avg_r: number;
+    median_r: number;
+
+    avg_duration_sec: number;
+
+    avg_mfe_r: number;
+    avg_mae_r: number;
+
+    tp_count: number;
+    sl_count: number;
+    break_even_count: number;
+    lock_profit_count: number;
+    partial_exit_count: number;
+    time_stop_early_count: number;
+    time_stop_stale_count: number;
+    manual_close_count: number;
+    recovery_close_count: number;
+    force_close_count: number;
+    unknown_close_count: number;
+
+    partial_trades: number;
+
+    best_trade_r: number;
+    worst_trade_r: number;
+
+    open_pnl?: number;
+};
+
+export type TradeStatsResponse = {
+    stats: TradeStats;
+};
+
+type RequestInitLike = RequestInit | undefined;
+
+
 
 // --- Settings types ---
 export type UserSettings = {
@@ -53,6 +132,7 @@ export type UserSettings = {
     Status: boolean;
     Premium: boolean;
     settings: Settings;
+    balance?: number;
 };
 
 export type Settings = {
@@ -108,21 +188,15 @@ export type TrailingConfig = {
     partial_close_frac: number;
 };
 
-// --- API responses ---
-export type StatusResponse = { positions: OpenPosition[] };
+// // --- API responses ---
+// export type StatusResponse = { positions: TradeRecord[] };
+
 export type SettingsResponse = UserSettings | { setting: UserSettings | null } | null;
-export type TradesResponse = { trades: TradeRecord[] };
-export type StatsResponse = { stats: TradeStats };
 
-export type AutoTuneResponse = {
-    decision: TuneDecision;
-    runtime: RuntimeTuning;
-    from: ISODateTime;
-    to: ISODateTime;
-    changed: boolean;
-    mode: TuneMode;
+
+export type RecentTradesResponse = {
+    trades: TradeRecord[];
 };
-
 const postEmpty = <T>(url: string) =>
     api<T>(url, { method: "POST", body: "{}" });
 
@@ -196,47 +270,25 @@ function normalizeSettings(u: UserSettings | null): UserSettings | null {
             TrailingConfig: s.TrailingConfig,
             FeatureFlags: s.FeatureFlags ?? {},
             PositionGuard: s.PositionGuard ?? s.position_guard ?? null,
+            balance: Number(s?.balance ?? 0),
+
         },
     };
 }
 
 export const trade = {
     disableBot: () => postEmpty<void>(`/api/bot/disable`),
-
-    enableBot: (user: UserSettings) =>
-        postJSON<void>(`/api/bot/enable`, { user }),
-
-    applySettings: (settings: UserSettings) =>
-        postJSON<void>(`/api/settings`, { user: settings }),
-
-    status: () => api<StatusResponse>(`/api/status`),
+    enableBot: (user: UserSettings) => postJSON<void>(`/api/bot/enable`, { user }),
 
     getSettings: async (): Promise<UserSettings | null> => {
         const resp = await api<SettingsResponse>(`/api/settings`);
         const unwrapped = unwrapSettings(resp);
         return normalizeSettings(unwrapped);
     },
+    applySettings: (settings: UserSettings) => postJSON<void>(`/api/settings`, { user: settings.settings}),
 
-    recentTrades: (limit = 20) =>
-        api<TradesResponse>(`/api/trades?limit=${limit}`),
-
-    tradeStats: () =>
-        api<StatsResponse>(`/api/stats`),
-
-    autoTuneNow: () =>
-        postEmpty<AutoTuneResponse>(`/api/strategy/tune/auto`),
-
-    toggleTuneMode: () =>
-        postEmpty<{ mode: TuneMode }>(`/api/strategy/tune/toggle`),
-
-    tuneMode: () =>
-        api<{ mode: TuneMode }>(`/api/strategy/tune/mode`),
-
-    strategyRejects: (reset = false) =>
-        api<RejectSnapshot>(`/api/strategy/rejects?reset=${reset ? "1" : "0"}`),
-
-    strategyTuning: () =>
-        api<{ runtime: RuntimeTuning; from: ISODateTime; to: ISODateTime }>(
-            `/api/strategy/runtime`
-        ),
+    status: () => api<StatusResponse>('/api/status'),
+    getRecentTrades: (limit = 20) =>
+        api<RecentTradesResponse>(`/api/trades?limit=${limit}`),
+    tradeStats: () => api<TradeStatsResponse>('/api/stats')
 };

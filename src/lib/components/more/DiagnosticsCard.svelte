@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { tgUser, tgReady } from "$lib/stores/telegram.ts";
+    import { tgUser, tgReady } from "$lib/stores/telegram";
 
     let open = false;
     let payload = "";

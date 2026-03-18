@@ -1,89 +1,87 @@
-import { writable } from "svelte/store";
-import { trade, type TradeRecord, type TradeStats } from "$lib/api/tradeApi";
+import { writable } from 'svelte/store';
+import { trade, type AccountSnapshot } from '$lib/api/tradeApi';
+import { mapTradeRecordsToUiTrades } from '$lib/mappers/trades';
+import { mapTradeStatsToUi } from '$lib/mappers/tradeStats';
+import type { UiTrade } from '$lib/types/trade';
+import type { UiTradeStats } from '$lib/types/tradeStats';
+import {mapAccountSnapshot} from "$lib/mappers/history";
+import type {UiAccountSnapshot} from "$lib/types/ui";
 
-type HistoryState = {
+export type HistoryState = {
     loading: boolean;
     error: string | null;
-    trades: TradeRecord[];
-    stats: TradeStats | null;
+
+    botRunning: boolean;
+    account: UiAccountSnapshot | null;
+
+    openTrades: UiTrade[];
+    trades: UiTrade[];
+    stats: UiTradeStats | null;
+
+    lastUpdatedAt: string | null;
 };
 
 const initialState: HistoryState = {
     loading: false,
     error: null,
+
+    botRunning: false,
+    account: null,
+
+    openTrades: [],
     trades: [],
     stats: null,
+
+    lastUpdatedAt: null
 };
 
 function createHistoryStore() {
-    const { subscribe, set, update } = writable<HistoryState>(initialState);
+    const { subscribe, update, set } = writable<HistoryState>(initialState);
 
     return {
         subscribe,
 
         reset: () => set(initialState),
 
-        loadTrades: async (limit = 20) => {
-            update((state) => ({ ...state, loading: true, error: null }));
-
-            try {
-                const resp = await trade.recentTrades(limit);
-
-                update((state) => ({
-                    ...state,
-                    loading: false,
-                    trades: resp.trades ?? [],
-                }));
-            } catch (e) {
-                update((state) => ({
-                    ...state,
-                    loading: false,
-                    error: e instanceof Error ? e.message : "Не удалось загрузить историю",
-                }));
-            }
-        },
-
-        loadStats: async () => {
-            update((state) => ({ ...state, error: null }));
-
-            try {
-                const resp = await trade.tradeStats();
-
-                update((state) => ({
-                    ...state,
-                    stats: resp.stats ?? null,
-                }));
-            } catch (e) {
-                update((state) => ({
-                    ...state,
-                    error: e instanceof Error ? e.message : "Не удалось загрузить статистику",
-                }));
-            }
-        },
-
         loadAll: async (limit = 20) => {
-            update((state) => ({ ...state, loading: true, error: null }));
+            update((state) => ({
+                ...state,
+                loading: true,
+                error: null
+            }));
 
             try {
-                const [tradesResp, statsResp] = await Promise.all([
-                    trade.recentTrades(limit),
-                    trade.tradeStats(),
+                const [status, recentTradesResponse, tradeStats] = await Promise.all([
+                    trade.status(),
+                    trade.getRecentTrades(limit),
+                    trade.tradeStats()
                 ]);
 
                 update((state) => ({
                     ...state,
                     loading: false,
-                    trades: tradesResp.trades ?? [],
-                    stats: statsResp.stats ?? null,
+                    error: null,
+
+                    botRunning: status.bot_running,
+                    account: mapAccountSnapshot(status.account) ?? null,
+
+                    openTrades: mapTradeRecordsToUiTrades(status.open_trades ?? []),
+                    trades: mapTradeRecordsToUiTrades(recentTradesResponse.trades ?? []),
+                    stats: mapTradeStatsToUi(tradeStats.stats),
+
+                    lastUpdatedAt: new Date().toISOString()
                 }));
+
             } catch (e) {
+                console.error('historyStore.loadAll failed', e);
+
                 update((state) => ({
                     ...state,
                     loading: false,
-                    error: e instanceof Error ? e.message : "Не удалось загрузить историю и статистику",
+                    error: e instanceof Error ? e.message : 'Не удалось загрузить данные'
                 }));
             }
-        },
+        }
     };
 }
 

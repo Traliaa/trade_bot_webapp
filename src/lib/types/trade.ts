@@ -1,52 +1,55 @@
-export type TradeSide = "BUY" | "SELL";
+export type UiTradeSide = 'long' | 'short';
 
-export type TradeCardVM = {
+export type UiTrade = {
+    id: string;
+
     symbol: string;
-    side: TradeSide;
+    strategy: string;
+    timeframe: string;
 
-    pnlPct?: number;
-    pnlAbs?: number;
+    side: UiTradeSide;
+    sideLabel: string;
+    sideTone: 'success' | 'danger';
 
-    entry?: number;
-    mark?: number;
-
-    size?: number;
-    lev?: number;
-
-    status?: string;
-
-    // лучше хранить как string (чтобы UI не гадал)
-    updatedAt?: string;
-};
-
-export type Side = 'long' | 'short';
-
-export type Position = {
-    pair: string;
-    side: Side;
-    pnlPct: number;
-    entry: string;
-    current: string;
-    sl: string;
-    tp: string;
-    size: string;
-    openedAt: string;
-    meta?: string;
-    progress?: number;
-};
-
-export type HistoryTrade = {
-    pair: string;
-    side: Side;
-    resultPct: number;
-    rr: number;
-    date: string;
     status: string;
-    entry: string;
-    exit: string;
-    sl: string;
-    tp: string;
-    size: string;
-    reason: string;
-    partials: string[];
+    closeReason: string;
+
+    entryPrice: number;
+    entrySize: number;
+    stopLoss: number;
+    takeProfit: number;
+    leverage: number;
+
+    currentPrice: number | null;
+    exitPrice: number | null;
+    exitSize: number | null;
+
+    pnl: number;
+    pnlPct: number;
+    exchangeUplRatio: number| null;
+    rMultiple: number | null;
+    riskDist: number | null;
+    durationSec: number | null;
+
+    movedToBE: boolean;
+    lockedProfit: boolean;
+    tookPartial: boolean;
+    partialCount: number;
+    timeStopTriggered: boolean;
+
+    mfePrice: number | null;
+    maePrice: number | null;
+    mfeR: number | null;
+    maeR: number | null;
+
+    openOrderId: string | null;
+    algoId: string | null;
+
+    entryAt: string;
+    exitAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+
+    isOpen: boolean;
+    isClosed: boolean;
 };

@@ -1,7 +1,8 @@
 <script lang="ts">
     import ActiveDealsList from './ActiveDealsList.svelte';
     import TradeHistoryList from './TradeHistoryList.svelte';
-    import SegmentedTabs, { type SegmentedTabItem } from '$lib/components/ui/SegmentedTabs.svelte';
+    import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
+    import type {SegmentedTabItem} from "$lib/types/ui";
 
     let tab: 'active' | 'history' = 'active';
 

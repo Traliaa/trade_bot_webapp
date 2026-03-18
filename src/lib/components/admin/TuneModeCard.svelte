@@ -1,11 +1,11 @@
 <script lang="ts">
-    import type { TuneMode } from '$lib/api/tradeApi';
     import Card from '$lib/components/ui/Card.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import InfoRow from '$lib/components/ui/InfoRow.svelte';
     import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
     import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
     import { hapticLight, hapticSuccess, hapticError } from '$lib/telegram/haptics';
+    import type {TuneMode} from "$lib/api/adminTradeApi";
 
     export let tuneMode: TuneMode;
     export let lastAutoTune: any = null;

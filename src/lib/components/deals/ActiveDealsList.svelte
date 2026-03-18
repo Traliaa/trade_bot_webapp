@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import TradeCard from './TradeCard.svelte';
-    import { tradeStore } from '$lib/stores/trade';
+    import { historyStore } from '$lib/stores/history';
     import { startVisibilityPoller } from '$lib/utils/visibilityPoller';
     import { hapticLight } from '$lib/telegram/haptics';
 
@@ -10,10 +10,10 @@
     import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
 
     onMount(() => {
-        tradeStore.loadPositions();
+        historyStore.loadAll(20);
 
         const poller = startVisibilityPoller(
-            () => tradeStore.loadPositions(),
+            () => historyStore.loadAll(20),
             5000
         );
 
@@ -24,8 +24,11 @@
 
     async function refresh() {
         hapticLight();
-        await tradeStore.loadPositions();
+        await historyStore.loadAll(20);
     }
+
+    $: state = $historyStore;
+    $: uiTrades = state.openTrades ?? [];
 </script>
 
 <div class="stack">
@@ -34,7 +37,7 @@
             <div class="icon">⇄</div>
             <div>
                 <div class="title">Активные сделки</div>
-                <div class="sub">Открытые позиции с быстрыми действиями</div>
+                <div class="sub">Открытые позиции с быстрым обзором</div>
             </div>
         </div>
     </Card>
@@ -42,28 +45,28 @@
     <Card>
         <SectionHeader
                 title="Открытые позиции"
-                subtitle={$tradeStore.loading ? 'Загрузка...' : `Сейчас активно ${$tradeStore.positions.length} сделки`}
+                subtitle={$historyStore.loading ? 'Загрузка...' : `Сейчас открыто ${uiTrades.length}`}
         >
             <svelte:fragment slot="actions">
-                <Button variant="ghost" on:click={refresh} disabled={$tradeStore.loading}>
-                    {$tradeStore.loading ? '...' : 'Обновить'}
+                <Button variant="ghost" on:click={refresh} disabled={$historyStore.loading}>
+                    {$historyStore.loading ? '...' : 'Обновить'}
                 </Button>
             </svelte:fragment>
         </SectionHeader>
 
-        {#if $tradeStore.error}
+        {#if $historyStore.error}
             <div class="inner-block">
                 <Card variant="error">
-                    <div class="error-text">{$tradeStore.error}</div>
+                    <div class="error-text">{$historyStore.error}</div>
                 </Card>
             </div>
-        {:else if $tradeStore.loading && $tradeStore.positions.length === 0}
+        {:else if $historyStore.loading && uiTrades.length === 0}
             <div class="inner-block">
                 <Card>
                     <div class="empty">Загружаем позиции...</div>
                 </Card>
             </div>
-        {:else if $tradeStore.positions.length === 0}
+        {:else if uiTrades.length === 0}
             <div class="inner-block">
                 <Card>
                     <div class="empty">Нет открытых позиций</div>
@@ -71,8 +74,8 @@
             </div>
         {:else}
             <div class="list">
-                {#each $tradeStore.positions as position}
-                    <TradeCard {position} />
+                {#each uiTrades as trade}
+                    <TradeCard {trade} />
                 {/each}
             </div>
         {/if}
@@ -99,7 +102,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(29, 78, 216, 0.2);
+        background: rgba(37, 99, 235, 0.18);
         color: #60a5fa;
         flex-shrink: 0;
     }

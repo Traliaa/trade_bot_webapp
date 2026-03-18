@@ -1,22 +1,21 @@
 <script lang="ts">
+  export let label = '';
+  export let value = '';
   export let compact = false;
   export let className = '';
+  export let valueTone: 'default' | 'success' | 'danger' | 'muted' = 'default';
 </script>
 
 <div class={`row ${compact ? 'compact' : ''} ${className}`}>
-  <span class="left">
-    <slot name="label" />
-  </span>
-
-  <span class="right">
-    <slot name="value" />
-  </span>
+  <span class="left">{label}</span>
+  <span class={`right right--${valueTone}`}>{value}</span>
 </div>
 
 <style>
   .row {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     gap: 12px;
     border-radius: 14px;
     padding: 12px;
@@ -31,17 +30,30 @@
 
   .left {
     color: var(--text-soft);
+    min-width: 0;
   }
 
   .right {
     text-align: right;
-    color: var(--text-main);
-  }
-  .label {
-    color: var(--text-soft);
+    color: var(--text, #fff);
+    font-weight: 500;
+    min-width: 0;
+    word-break: break-word;
   }
 
-  .value {
-    color: var(--text-main);
+  .right--default {
+    color: var(--text, #fff);
+  }
+
+  .right--success {
+    color: #34d399;
+  }
+
+  .right--danger {
+    color: #fb7185;
+  }
+
+  .right--muted {
+    color: rgba(255, 255, 255, 0.5);
   }
 </style>

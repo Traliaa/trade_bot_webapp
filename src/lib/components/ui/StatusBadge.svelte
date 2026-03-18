@@ -1,5 +1,5 @@
 <script lang="ts">
-    export let tone: 'success' | 'danger' | 'neutral' = 'neutral';
+  export let tone: 'success' | 'danger' | 'neutral' = 'neutral';
 </script>
 
 <span class={`badge ${tone}`}>
