@@ -1,8 +1,10 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { settingsStore } from '$lib/stores/settings';
+    import { tgUser } from '$lib/stores/telegram';
+    import { isAdminUserId } from '$lib/auth/admin';
     import { hapticLight, hapticSuccess, hapticError } from '$lib/telegram/haptics';
-    import { isAdminNow } from '$lib/auth/admin';
+
     import AdminStrategyPage from '$lib/components/admin/AdminStrategyPage.svelte';
     import BotControlsCard from './BotControlsCard.svelte';
     import TestTradeCard from './TestTradeCard.svelte';
@@ -11,26 +13,28 @@
     import Button from '$lib/components/ui/Button.svelte';
     import InfoRow from '$lib/components/ui/InfoRow.svelte';
     import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
-    import {adminTradeApi, type TuneMode} from "$lib/api/adminTradeApi";
-    import type {UserSettings} from "$lib/api/tradeApi";
+
+    import { adminTradeApi, type TuneMode } from '$lib/api/adminTradeApi';
+    import type { UserSettings } from '$lib/api/tradeApi';
 
     let loading = false;
     let error: string | null = null;
     let saveError: string | null = null;
     let saveSuccess = false;
+
     let tuneMode: TuneMode = 'off';
     let draftUser: UserSettings | null = null;
 
-    $: isAdmin = isAdminNow();
-
-    onMount(() => {
-        loadPage();
-    });
+    $: isAdmin = isAdminUserId($tgUser?.id ?? null);
 
     function cloneUser<T>(value: T): T {
         if (typeof structuredClone !== 'undefined') return structuredClone(value);
         return JSON.parse(JSON.stringify(value));
     }
+
+    onMount(() => {
+        loadPage();
+    });
 
     $: if ($settingsStore.data && !draftUser) {
         draftUser = cloneUser($settingsStore.data);
@@ -49,7 +53,12 @@
         saveSuccess = false;
 
         try {
-            await Promise.all([settingsStore.load(), loadTuneMode()]);
+            await settingsStore.load();
+
+            if (isAdmin) {
+                await loadTuneMode();
+            }
+
             draftUser = null;
         } catch (e) {
             error = e instanceof Error ? e.message : 'Не удалось загрузить раздел';
@@ -60,6 +69,7 @@
     }
 
     async function loadTuneMode() {
+        if (!isAdmin) return;
         const resp = await adminTradeApi.tuneMode();
         tuneMode = resp.mode ?? 'off';
     }
@@ -73,10 +83,11 @@
 
         try {
             await settingsStore.save(draftUser);
-            saveSuccess = true;
-            hapticSuccess();
             await settingsStore.load();
+
+            saveSuccess = true;
             draftUser = null;
+            hapticSuccess();
         } catch (e) {
             saveError = e instanceof Error ? e.message : 'Не удалось сохранить API-ключи';
             hapticError();
@@ -84,29 +95,41 @@
     }
 
     function resetDraft() {
-        if ($settingsStore.data) {
-            draftUser = cloneUser($settingsStore.data);
-            saveError = null;
-            saveSuccess = false;
-            hapticLight();
-        }
+        if (!$settingsStore.data) return;
+
+        draftUser = cloneUser($settingsStore.data);
+        saveError = null;
+        saveSuccess = false;
+        hapticLight();
     }
 
-    const quickActions = [
-        ['API ключи OKX', 'Подключение биржи и проверка доступа', '🔑'],
-        ['Тестовая сделка', 'Проверка логики без реальной позиции', '🧪'],
-        ['Справка', 'Термины и подсказки', '📘'],
-        ['Премиум', premium ? 'Активен' : 'Не активен', '💎']
-    ];
+    // const quickActions = [
+    //     ['API ключи OKX', 'Подключение биржи и проверка доступа', '🔑'],
+    //     ['Тестовая сделка', 'Проверка логики без реальной позиции', '🧪'],
+    //     ['Справка', 'Термины и подсказки', '📘'],
+    //     ['Премиум', premium ? 'Активен' : 'Не активен', '💎']
+    // ];
 </script>
+<Card variant="muted">
+    <div class="admin-head">
+        <div class="admin-badge">ADMIN</div>
+        <div>
+            <div class="title">Администрирование</div>
+            <div class="sub">Управление ботом и ручной тюн стратегии</div>
+        </div>
+    </div>
+</Card>
 
+
+
+<AdminStrategyPage />
 <div class="stack">
     <Card variant="muted">
         <div class="info-head">
             <div class="icon">⋯</div>
             <div>
                 <div class="title">Ещё</div>
-                <div class="sub">Сервисные действия, подключение OKX и диагностика</div>
+                <div class="sub">Подключение OKX, сервисные действия и диагностика</div>
             </div>
         </div>
     </Card>
@@ -115,6 +138,7 @@
         <Card variant="error">
             <div class="title">Ошибка</div>
             <div class="sub">{error}</div>
+
             <div class="top-gap">
                 <Button variant="primary" on:click={loadPage} disabled={loading}>
                     Повторить
@@ -137,36 +161,48 @@
         </Card>
     {/if}
 
-    <Card>
-        <SectionHeader
-                title="Быстрые действия"
-                subtitle="Частые разделы и служебные сценарии"
-        >
-            <svelte:fragment slot="actions">
-                <Button variant="ghost" on:click={loadPage} disabled={loading}>
-                    {loading ? '...' : 'Обновить'}
-                </Button>
-            </svelte:fragment>
-        </SectionHeader>
+<!--    <Card>-->
+<!--        <SectionHeader-->
+<!--                title="Быстрые действия"-->
+<!--                subtitle="Частые разделы и служебные сценарии"-->
+<!--        >-->
+<!--            <svelte:fragment slot="actions">-->
+<!--                <Button variant="ghost" on:click={loadPage} disabled={loading}>-->
+<!--                    {loading ? '...' : 'Обновить'}-->
+<!--                </Button>-->
+<!--            </svelte:fragment>-->
+<!--        </SectionHeader>-->
 
-        <div class="grid2">
-            {#each quickActions as [title, subtitle, icon]}
-                <button class="action-card" type="button">
-                    <div class="action-icon">{icon}</div>
-                    <div class="action-title">{title}</div>
-                    <div class="action-sub">{subtitle}</div>
-                </button>
-            {/each}
-        </div>
-    </Card>
-
+<!--        <div class="grid2">-->
+<!--            {#each quickActions as [actionTitle, actionSubtitle, actionIcon]}-->
+<!--                <button class="action-card" type="button">-->
+<!--                    <div class="action-icon">{actionIcon}</div>-->
+<!--                    <div class="action-title">{actionTitle}</div>-->
+<!--                    <div class="action-sub">{actionSubtitle}</div>-->
+<!--                </button>-->
+<!--            {/each}-->
+<!--        </div>-->
+<!--    </Card>-->
     <BotControlsCard
             {user}
-            {tuneMode}
-            onTuneChanged={(mode) => (tuneMode = mode)}
             onReload={loadPage}
     />
 
+    {#if isAdmin}
+    <Card variant="muted">
+        <div class="admin-head">
+            <div class="admin-badge">ADMIN</div>
+            <div>
+                <div class="title">Администрирование</div>
+                <div class="sub">Управление ботом и ручной тюн стратегии</div>
+            </div>
+        </div>
+    </Card>
+
+
+
+    <AdminStrategyPage />
+    {/if}
     <Card>
         <SectionHeader
                 title="Подключение OKX"
@@ -174,10 +210,19 @@
         >
             <svelte:fragment slot="actions">
                 <div class="inline-actions">
-                    <Button variant="ghost" on:click={resetDraft} disabled={!draftUser || $settingsStore.saving}>
+                    <Button
+                            variant="ghost"
+                            on:click={resetDraft}
+                            disabled={!draftUser || $settingsStore.saving}
+                    >
                         Сбросить
                     </Button>
-                    <Button variant="primary" on:click={saveApiKeys} disabled={!draftUser || $settingsStore.saving}>
+
+                    <Button
+                            variant="primary"
+                            on:click={saveApiKeys}
+                            disabled={!draftUser || $settingsStore.saving}
+                    >
                         {$settingsStore.saving ? 'Сохраняем...' : 'Сохранить'}
                     </Button>
                 </div>
@@ -188,30 +233,30 @@
             <div class="form-grid">
                 <label class="field">
                     <span>OKX API key</span>
-                    <input type="text" bind:value={trading.okx_api_key} placeholder="Введите API key" />
+                    <input
+                            type="text"
+                            bind:value={trading.okx_api_key}
+                            placeholder="Введите API key"
+                    />
                 </label>
 
                 <label class="field">
                     <span>OKX API secret</span>
-                    <input type="password" bind:value={trading.okx_api_secret} placeholder="Введите API secret" />
+                    <input
+                            type="password"
+                            bind:value={trading.okx_api_secret}
+                            placeholder="Введите API secret"
+                    />
                 </label>
 
                 <label class="field">
                     <span>OKX Passphrase</span>
-                    <input type="password" bind:value={trading.okx_passphrase} placeholder="Введите passphrase" />
+                    <input
+                            type="password"
+                            bind:value={trading.okx_passphrase}
+                            placeholder="Введите passphrase"
+                    />
                 </label>
-
-                <div class="rows compact">
-                    <InfoRow compact>
-                        <span slot="label">Плечо</span>
-                        <span slot="value">{trading.leverage ?? '—'}</span>
-                    </InfoRow>
-
-                    <InfoRow compact>
-                        <span slot="label">Макс. позиций</span>
-                        <span slot="value">{trading.max_open_positions ?? '—'}</span>
-                    </InfoRow>
-                </div>
             </div>
         {:else}
             <Card className="inner-card">
@@ -219,41 +264,8 @@
             </Card>
         {/if}
     </Card>
+        <TestTradeCard />
 
-    <TestTradeCard />
-
-    <Card>
-        <SectionHeader
-                title="Диагностика стратегии"
-                subtitle="Быстрый просмотр сервисных параметров"
-        />
-
-        <div class="rows">
-            <InfoRow>
-                <span slot="label">Симуляция перед входом</span>
-                <span slot="value">{features?.simulate_before_entry ? 'Вкл' : 'Выкл'}</span>
-            </InfoRow>
-
-            <InfoRow>
-                <span slot="label">График сделки</span>
-                <span slot="value">{features?.deal_chart_enabled ? 'Вкл' : 'Выкл'}</span>
-            </InfoRow>
-
-            <InfoRow>
-                <span slot="label">Авто-рекомендации</span>
-                <span slot="value">{features?.auto_recommend_enabled ? 'Вкл' : 'Выкл'}</span>
-            </InfoRow>
-
-            <InfoRow>
-                <span slot="label">PRO режим</span>
-                <span slot="value">{features?.pro_mode ? 'Вкл' : 'Выкл'}</span>
-            </InfoRow>
-        </div>
-    </Card>
-
-    {#if isAdmin}
-        <AdminStrategyPage />
-    {/if}
 </div>
 
 <style>
@@ -263,23 +275,39 @@
         gap: 12px;
     }
 
-    .info-head {
+    .info-head,
+    .admin-head {
         display: flex;
         gap: 12px;
         align-items: flex-start;
     }
 
     .icon,
-    .action-icon {
+    .action-icon,
+    .admin-badge {
         width: 32px;
         height: 32px;
         border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .icon {
         background: rgba(29, 78, 216, 0.2);
         color: #60a5fa;
-        flex-shrink: 0;
+    }
+
+    .admin-badge {
+        width: auto;
+        min-width: 48px;
+        padding: 0 10px;
+        background: rgba(52, 211, 153, 0.12);
+        color: #34d399;
+        border: 1px solid rgba(52, 211, 153, 0.22);
+        font-size: 11px;
+        font-weight: 700;
     }
 
     .action-icon {
@@ -300,6 +328,7 @@
         margin-top: 2px;
         font-size: 12px;
         color: rgba(255, 255, 255, 0.45);
+        line-height: 1.35;
     }
 
     .top-gap {
@@ -373,6 +402,10 @@
         color: #fff;
         padding: 0 12px;
         font-size: 14px;
+    }
+
+    .field input::placeholder {
+        color: rgba(255, 255, 255, 0.28);
     }
 
     .inner-card {

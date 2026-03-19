@@ -8,8 +8,3 @@ export function isAdminUserId(userId?: number | null): boolean {
     if (!userId) return false;
     return Number(userId) === ADMIN_CHAT_ID;
 }
-
-export function isAdminNow(): boolean {
-    const u = get(tgUser);
-    return isAdminUserId(u?.id ?? null);
-}
