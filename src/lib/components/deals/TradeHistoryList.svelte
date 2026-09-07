@@ -86,12 +86,6 @@
         return typeof value === 'number' && value < 0;
     }
 
-    function resultTone(value?: number | null): 'success' | 'danger' | 'default' {
-        if (isProfit(value)) return 'success';
-        if (isLoss(value)) return 'danger';
-        return 'default';
-    }
-
     $: allTrades = $historyStore.trades ?? [];
     $: trades = allTrades.filter((t) => t.isClosed);
     $: stats = $historyStore.stats;
@@ -534,101 +528,6 @@
         font-size: 14px;
         font-weight: 600;
         color: var(--text-main, #fff);
-    }
-
-    .scheme-card {
-        margin-top: 12px;
-        border-radius: 14px;
-        border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-        background: var(--bg-card, #0b1220);
-        padding: 12px;
-    }
-
-    .scheme-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        font-size: 10px;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: var(--text-faint, rgba(255, 255, 255, 0.4));
-    }
-
-    .scheme-line {
-        position: relative;
-        height: 56px;
-        margin-top: 10px;
-    }
-
-    .line {
-        position: absolute;
-        left: 0;
-        right: 0;
-        top: 50%;
-        height: 2px;
-        transform: translateY(-50%);
-        border-radius: 999px;
-        background: rgba(255, 255, 255, 0.08);
-    }
-
-    .dot {
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        border-radius: 999px;
-    }
-
-    .dot.entry {
-        left: 10%;
-        width: 12px;
-        height: 12px;
-        background: #60a5fa;
-    }
-
-    .dot.middle {
-        left: 48%;
-        width: 14px;
-        height: 14px;
-        border: 2px solid white;
-        background: #111827;
-    }
-
-    .dot.exit {
-        right: 10%;
-        width: 12px;
-        height: 12px;
-        background: #94a3b8;
-    }
-
-    .dot.exit.profit-dot {
-        background: #34d399;
-    }
-
-    .dot.exit.loss-dot {
-        background: #fb7185;
-    }
-
-    .label-entry,
-    .label-middle,
-    .label-exit {
-        position: absolute;
-        font-size: 10px;
-        color: var(--text-muted, rgba(255, 255, 255, 0.45));
-    }
-
-    .label-entry {
-        left: 8%;
-        top: 2px;
-    }
-
-    .label-middle {
-        left: 38%;
-        bottom: 2px;
-    }
-
-    .label-exit {
-        right: 6%;
-        top: 2px;
     }
 
     .inner-card {

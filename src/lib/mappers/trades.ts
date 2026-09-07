@@ -57,6 +57,7 @@ export function mapTradeRecordToUiTrade(record: TradeRecord): UiTrade {
 
         entryPrice: payload.entry_price ?? 0,
         entrySize: payload.entry_size ?? 0,
+        currentSize: payload.current_size ?? payload.entry_size ?? 0,
         stopLoss: payload.stop_loss ?? 0,
         takeProfit: payload.take_profit ?? 0,
         leverage: Number(payload.leverage ?? 0),

@@ -2,21 +2,35 @@
     import { tgUser } from '$lib/stores/telegram';
     import { isAdminUserId } from '$lib/auth/admin';
     import { adminTradeApi } from '$lib/api/adminTradeApi';
+    import { tuneDecisionMessage } from '$lib/api/adminPayload';
     import { hapticLight, hapticSuccess, hapticError } from '$lib/telegram/haptics';
 
     import Card from '$lib/components/ui/Card.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import InfoRow from '$lib/components/ui/InfoRow.svelte';
     import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
-    import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
+    import { botStatsStore } from '$lib/stores/stats';
 
     let loading = false;
+    let actionBusy = false;
     let error: string | null = null;
     let loadedOnce = false;
 
     let tuneMode = 'off';
-    let runtime: any = null;
-    let rejects: any = null;
+    let runtime: {
+        breakoutPct?: number;
+        minChannelPct?: number;
+        minBodyPct?: number;
+        closeUpMin?: number;
+        closeDnMax?: number;
+    } | null = null;
+
+    let rejects: {
+        total?: number;
+        from?: string;
+        to?: string;
+        reasons?: Record<string, number>;
+    } | null = null;
 
     let manualTuneLoading = false;
     let manualTuneResult:
@@ -24,10 +38,9 @@
         ok: boolean;
         changed: boolean;
         message: string;
-        payload?: any;
+        payload?: unknown;
     }
         | null = null;
-
 
     $: isAdmin = isAdminUserId($tgUser?.id ?? null);
 
@@ -42,6 +55,10 @@
                 return 'Выключен';
             case 'safe':
                 return 'Осторожный';
+            case 'auto':
+                return 'Автоматический';
+            case 'manual':
+                return 'Ручной';
             case 'aggressive':
                 return 'Агрессивный';
             default:
@@ -57,11 +74,22 @@
         });
     }
 
-    function decisionSummary(payload: any): string {
-        if (!payload) return 'Результат не получен';
-        if (payload.changed) return 'Изменения применены';
-        return 'Тюн выполнен, но изменения не потребовались';
+    function formatPct(v: unknown, digits = 1): string {
+        if (typeof v !== 'number' || Number.isNaN(v)) return '—';
+        return `${v.toFixed(digits)}%`;
     }
+
+    function formatPnl(v: unknown, digits = 2): string {
+        if (typeof v !== 'number' || Number.isNaN(v)) return '—';
+        const sign = v > 0 ? '+' : '';
+        return `${sign}${formatNum(v, digits)}`;
+    }
+
+    function formatPeriod(from?: string, to?: string): string {
+        if (!from || !to) return '—';
+        return 'Активен';
+    }
+
 
     async function load() {
         if (!isAdmin) return;
@@ -70,15 +98,7 @@
         error = null;
 
         try {
-            const [modeResp, runtimeResp, rejectsResp] = await Promise.all([
-                adminTradeApi.tuneMode(),
-                adminTradeApi.strategyTuning(),
-                adminTradeApi.strategyRejects(false)
-            ]);
-
-            tuneMode = modeResp?.mode ?? 'off';
-            runtime = runtimeResp?.runtime ?? null;
-            rejects = rejectsResp ?? null;
+            await Promise.all([botStatsStore.load(), loadTuneData()]);
         } catch (e) {
             error = e instanceof Error ? e.message : 'Не удалось загрузить admin данные';
             hapticError();
@@ -87,8 +107,22 @@
         }
     }
 
+    async function loadTuneData() {
+        const [modeResp, runtimeResp, rejectsResp] = await Promise.all([
+            adminTradeApi.tuneMode(),
+            adminTradeApi.strategyTuning(),
+            adminTradeApi.strategyRejects(false)
+        ]);
+
+        tuneMode = modeResp?.mode ?? 'off';
+        runtime = runtimeResp?.runtime ?? null;
+        rejects = rejectsResp ?? null;
+    }
+
     async function toggleTune() {
-        if (!isAdmin) return;
+        if (!isAdmin || actionBusy || loading || manualTuneLoading) return;
+        actionBusy = true;
+        error = null;
 
         try {
             hapticLight();
@@ -98,11 +132,15 @@
         } catch (e) {
             error = e instanceof Error ? e.message : 'Не удалось переключить тюн';
             hapticError();
+        } finally {
+            actionBusy = false;
         }
     }
 
     async function resetRejects() {
-        if (!isAdmin) return;
+        if (!isAdmin || actionBusy || loading || manualTuneLoading) return;
+        actionBusy = true;
+        error = null;
 
         try {
             hapticLight();
@@ -111,11 +149,13 @@
         } catch (e) {
             error = e instanceof Error ? e.message : 'Не удалось сбросить статистику reject';
             hapticError();
+        } finally {
+            actionBusy = false;
         }
     }
 
     async function runManualTune() {
-        if (!isAdmin) return;
+        if (!isAdmin || actionBusy || loading || manualTuneLoading) return;
 
         manualTuneLoading = true;
         manualTuneResult = null;
@@ -128,7 +168,7 @@
             manualTuneResult = {
                 ok: true,
                 changed: Boolean(result?.changed),
-                message: decisionSummary(result),
+                message: tuneDecisionMessage(result),
                 payload: result
             };
 
@@ -148,9 +188,25 @@
         }
     }
 
-    $: rejectRows = [
-        { label: 'Всего', value: rejects?.total ?? '—' },
-        { label: 'Окно', value: rejects?.from && rejects?.to ? 'Активно' : '—' }
+    $: botStats = $botStatsStore.data;
+
+    $: botStatsRows = [
+        { label: 'Всего сделок', value: formatNum(botStats?.totalTrades, 0) },
+        { label: 'Открытых', value: formatNum(botStats?.openTrades, 0) },
+        { label: 'Закрытых', value: formatNum(botStats?.closedTrades, 0) },
+        { label: 'Побед', value: formatNum(botStats?.wins, 0) },
+        { label: 'Убыточных', value: formatNum(botStats?.losses, 0) },
+        { label: 'Безубыток', value: formatNum(botStats?.breakevenTrades, 0) },
+        { label: 'Win rate', value: formatPct(botStats?.winRate) },
+        { label: 'Total PnL', value: formatPnl(botStats?.totalPnL) },
+        { label: 'Open PnL', value: formatPnl(botStats?.openPnL) },
+        { label: 'Avg PnL', value: formatPnl(botStats?.avgPnL) },
+        { label: 'Profit factor', value: formatNum(botStats?.profitFactor, 2) },
+        { label: 'Total R', value: formatNum(botStats?.totalR, 2) },
+        { label: 'Avg R', value: formatNum(botStats?.avgR, 2) },
+        { label: 'Median R', value: formatNum(botStats?.medianR, 2) },
+        { label: 'Best R', value: formatNum(botStats?.bestTradeR, 2) },
+        { label: 'Worst R', value: formatNum(botStats?.worstTradeR, 2) }
     ];
 
     $: runtimeRows = [
@@ -159,6 +215,32 @@
         { label: 'Body', value: formatNum(runtime?.minBodyPct, 4) },
         { label: 'Close up', value: formatNum(runtime?.closeUpMin, 2) },
         { label: 'Close down', value: formatNum(runtime?.closeDnMax, 2) }
+    ];
+
+    $: rejectRows = [
+        { label: 'Всего reject', value: formatNum(rejects?.total, 0) },
+        { label: 'Период', value: formatPeriod(rejects?.from, rejects?.to) }
+    ];
+
+    $: exitRows = [
+        { label: 'TP', value: formatNum(botStats?.tpCount, 0) },
+        { label: 'SL', value: formatNum(botStats?.slCount, 0) },
+        { label: 'Break even', value: formatNum(botStats?.breakEvenCount, 0) },
+        { label: 'Lock profit', value: formatNum(botStats?.lockProfitCount, 0) },
+        { label: 'Partial exit', value: formatNum(botStats?.partialExitCount, 0) },
+        { label: 'Time stop early', value: formatNum(botStats?.timeStopEarlyCount, 0) },
+        { label: 'Time stop stale', value: formatNum(botStats?.timeStopStaleCount, 0) },
+        { label: 'Manual close', value: formatNum(botStats?.manualCloseCount, 0) },
+        { label: 'Recovery close', value: formatNum(botStats?.recoveryCloseCount, 0) },
+        { label: 'Force close', value: formatNum(botStats?.forceCloseCount, 0) },
+        { label: 'Unknown close', value: formatNum(botStats?.unknownCloseCount, 0) }
+    ];
+
+    $: qualityRows = [
+        { label: 'Avg MFE R', value: formatNum(botStats?.avgMfeR, 2) },
+        { label: 'Avg MAE R', value: formatNum(botStats?.avgMaeR, 2) },
+        { label: 'Partial trades', value: formatNum(botStats?.partialTrades, 0) },
+        { label: 'Avg duration, sec', value: formatNum(botStats?.avgDurationSec, 0) }
     ];
 
     $: rejectReasons =
@@ -176,7 +258,7 @@
                 <div class="icon">⚙️</div>
                 <div>
                     <div class="title">Ручной тюн стратегии</div>
-                    <div class="sub">Сначала смотрим статистику, потом запускаем ручной тюн</div>
+                    <div class="sub">Сначала смотрим статистику бота, потом запускаем тюн</div>
                 </div>
             </div>
         </Card>
@@ -207,20 +289,80 @@
             </div>
 
             <div class="actions one-line">
-                <Button variant="secondary" on:click={toggleTune} disabled={loading || manualTuneLoading}>
-                    Переключить тюн
+                <Button variant="secondary" on:click={toggleTune} disabled={actionBusy || loading || manualTuneLoading}>
+                    {actionBusy ? 'Выполняем…' : 'Переключить тюн'}
                 </Button>
             </div>
         </Card>
 
         <Card>
             <SectionHeader
-                    title="Статистика для тюна"
-                    subtitle="Текущие runtime параметры и reject-статистика"
+                    title="Статистика бота перед тюном"
+                    subtitle="Ключевые метрики стратегии"
+            />
+
+            {#if $botStatsStore.error}
+                <Card variant="error" className="inner-card">
+                    <div class="error-text">{$botStatsStore.error}</div>
+                </Card>
+            {:else}
+                <div class="stats-grid">
+                    {#each botStatsRows as row}
+                        <div class="mini-card">
+                            <InfoRow compact>
+                                <span slot="label">{row.label}</span>
+                                <span slot="value">{row.value}</span>
+                            </InfoRow>
+                        </div>
+                    {/each}
+                </div>
+            {/if}
+        </Card>
+
+        <Card>
+            <SectionHeader
+                    title="Качество сделок"
+                    subtitle="Поведение трейдов и качество сопровождения"
             />
 
             <div class="stats-grid">
-                <div class="mini-card">
+                {#each qualityRows as row}
+                    <div class="mini-card">
+                        <InfoRow compact>
+                            <span slot="label">{row.label}</span>
+                            <span slot="value">{row.value}</span>
+                        </InfoRow>
+                    </div>
+                {/each}
+            </div>
+        </Card>
+
+        <Card>
+            <SectionHeader
+                    title="Статистика выходов"
+                    subtitle="Какими способами чаще всего закрываются сделки"
+            />
+
+            <div class="stats-grid">
+                {#each exitRows as row}
+                    <div class="mini-card">
+                        <InfoRow compact>
+                            <span slot="label">{row.label}</span>
+                            <span slot="value">{row.value}</span>
+                        </InfoRow>
+                    </div>
+                {/each}
+            </div>
+        </Card>
+
+        <Card>
+            <SectionHeader
+                    title="Статистика для тюна"
+                    subtitle="Runtime параметры и reject-статистика"
+            />
+
+            <div class="stats-grid two-col">
+                <div class="panel-card">
                     <div class="mini-title">Runtime tuning</div>
                     <div class="mini-list">
                         {#each runtimeRows as row}
@@ -232,7 +374,7 @@
                     </div>
                 </div>
 
-                <div class="mini-card">
+                <div class="panel-card">
                     <div class="mini-title">Reject snapshot</div>
                     <div class="mini-list">
                         {#each rejectRows as row}
@@ -248,7 +390,7 @@
             <div class="reasons-card">
                 <div class="mini-title with-action">
                     <span>Топ причин reject</span>
-                    <Button variant="ghost" on:click={resetRejects} disabled={loading || manualTuneLoading}>
+                    <Button variant="ghost" on:click={resetRejects} disabled={actionBusy || loading || manualTuneLoading}>
                         Сбросить
                     </Button>
                 </div>
@@ -275,7 +417,7 @@
             />
 
             <div class="actions one-line">
-                <Button variant="primary" on:click={runManualTune} disabled={manualTuneLoading || loading}>
+                <Button variant="primary" on:click={runManualTune} disabled={actionBusy || manualTuneLoading || loading}>
                     {manualTuneLoading ? 'Запускаем...' : 'Запустить ручной тюн'}
                 </Button>
             </div>
@@ -363,10 +505,15 @@
         margin-top: 12px;
         display: grid;
         grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .stats-grid.two-col {
         gap: 10px;
     }
 
     .mini-card,
+    .panel-card,
     .reasons-card {
         border-radius: 14px;
         background: rgba(255, 255, 255, 0.03);
@@ -459,10 +606,6 @@
         color: var(--text-muted, #94a3b8);
     }
 
-    .inner-card {
-        margin-top: 12px;
-    }
-
     .error-text {
         font-size: 13px;
         color: #fca5a5;
@@ -472,5 +615,15 @@
         margin-top: 10px;
         font-size: 13px;
         color: rgba(255,255,255,0.55);
+    }
+
+    @media (min-width: 720px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .stats-grid.two-col {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
     }
 </style>

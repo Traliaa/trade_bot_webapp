@@ -220,10 +220,6 @@
         color: rgba(255, 255, 255, 0.4);
     }
 
-    .inner-card {
-        margin-top: 12px;
-    }
-
     .empty {
         font-size: 13px;
         color: rgba(255, 255, 255, 0.55);

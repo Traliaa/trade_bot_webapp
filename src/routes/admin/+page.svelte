@@ -1,12 +1,12 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
+    import { resolve } from "$app/paths";
     import { get } from "svelte/store";
     import { tgUser, tgReady } from "$lib/stores/telegram";
     import { isAdminUserId } from "$lib/auth/admin";
     import { adminTradeApi } from "$lib/api/adminTradeApi";
     import { trade } from "$lib/api/tradeApi"; // для user-scoped debug: status/settings
-    import { DEV_USER_ID } from "$lib/env/public";
 
     let loading = false;
     let error: string | null = null;
@@ -21,10 +21,6 @@
     type DebugRow = { name: string; ok: boolean; data: any };
     let debug: DebugRow[] = [];
     let debugLoading = false;
-
-    // userId реактивно (для user-scoped debug)
-    $: userId =
-        $tgUser?.id ?? (import.meta.env.DEV && DEV_USER_ID ? DEV_USER_ID : null);
 
     function setErr(e: any) {
         error = e?.message ?? String(e);
@@ -101,27 +97,14 @@
         debugLoading = true;
         debug = [];
 
-        const uid = userId;
-
-        // admin-scoped (без userId)
+        // Диагностика выполняет только read-only запросы.
         const calls: Array<[string, () => Promise<any>]> = [
             ["admin.tuneMode()", () => adminTradeApi.tuneMode()],
             ["admin.strategyTuning()", () => adminTradeApi.strategyTuning()],
             ["admin.strategyRejects(reset=0)", () => adminTradeApi.strategyRejects(false)],
-            ["admin.toggleTuneMode()", () => adminTradeApi.toggleTuneMode()],
-            ["admin.autoTuneNow()", () => adminTradeApi.autoTuneNow()],
+            ["user.status()", () => trade.status()],
+            ["user.getSettings()", () => trade.getSettings()],
         ];
-
-        // user-scoped (требуют userId) — теперь вместо session используем settings
-        if (uid) {
-            calls.unshift(["user.statusForUser(userId)", () => trade.statusForUser(uid)]);
-            calls.unshift(["user.getSettings(userId)", () => trade.getSettings(uid)]);
-        } else {
-            debug = [
-                ...debug,
-                { name: "userId", ok: false, data: "userId отсутствует (tgUser.id ещё не готов / не Telegram)" },
-            ];
-        }
 
         for (const [name, fn] of calls) {
             try {
@@ -138,7 +121,7 @@
     onMount(() => {
         const u = get(tgUser);
         if (!isAdminUserId(u?.id)) {
-            goto("/");
+            goto(resolve("/"));
             return;
         }
         loadAll();
@@ -211,7 +194,7 @@
         <div class="meta">
             tgReady: {String($tgReady)} |
             tgUser.id: {$tgUser?.id ?? "—"} |
-            effective userId: {userId ?? "—"}
+            API scope: current session
         </div>
 
         {#if debug.length === 0}

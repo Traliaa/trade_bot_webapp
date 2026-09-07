@@ -1,7 +1,4 @@
-import { tgUser } from "$lib/stores/telegram";
-import { get } from "svelte/store";
-
-const ADMIN_CHAT_ID = Number(import.meta.env.PUBLIC_ADMIN_CHAT_ID ?? "213532199");
+import { ADMIN_CHAT_ID } from '$lib/env/public';
 
 export function isAdminUserId(userId?: number | null): boolean {
     if (!ADMIN_CHAT_ID) return false;

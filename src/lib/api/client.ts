@@ -2,6 +2,9 @@ import { token } from "$lib/stores/auth";
 import { API_BASE } from "$lib/env/public";
 
 let tokenValue: string | null = null;
+export class ApiError extends Error {
+    constructor(message: string, public status: number) { super(message); }
+}
 token.subscribe((v) => (tokenValue = v));
 
 type ApiOptions = Omit<RequestInit, "headers"> & {
@@ -52,7 +55,7 @@ export async function api<T>(path: string, opts: ApiOptions = {}): Promise<T> {
             typeof data === "string"
                 ? data
                 : data?.error ?? data?.message ?? `HTTP ${res.status}`;
-        throw new Error(msg);
+        throw new ApiError(msg, res.status);
     }
 
     return data as T;

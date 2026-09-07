@@ -1,12 +1,13 @@
 <script lang="ts">
     import { page } from '$app/stores';
+    import { resolve } from '$app/paths';
 
     const items = [
         { href: '/', label: 'Обзор' },
         { href: '/deals', label: 'Сделки' },
         { href: '/strategy', label: 'Стратегия' },
         { href: '/more', label: 'Ещё' }
-    ];
+    ] as const;
 
     $: pathname = $page.url.pathname;
 </script>
@@ -14,7 +15,7 @@
 <nav class="bottom-nav">
     {#each items as item}
         <a
-                href={item.href}
+                href={resolve(item.href)}
                 class:active={pathname === item.href}
         >
             {item.label}

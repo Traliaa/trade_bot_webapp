@@ -58,7 +58,6 @@ function createSettingsStore() {
                 update((state) => ({
                     ...state,
                     saving: false,
-                    error: e instanceof Error ? e.message : "Не удалось сохранить настройки",
                 }));
                 throw e;
             }

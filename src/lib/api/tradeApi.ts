@@ -1,4 +1,9 @@
 import { api } from "$lib/api/client";
+import { settingsPayload } from './settingsPayload';
+import type { RawTradeStats, TradeStatsResponse } from "$lib/api/adminTradeApi";
+
+export type TradeStats = RawTradeStats;
+export type { TradeStatsResponse };
 
 
 
@@ -12,6 +17,7 @@ export type AccountSnapshot = {
 };
 
 export type TradePayload = {
+    current_size?: number;
     pos_side: string;
     side: string;
 
@@ -67,59 +73,11 @@ export type TradeRecord = {
 };
 
 export type StatusResponse = {
+    last_signal?: { symbol: string; side: string; price: number; created_at: string } | null;
     bot_running: boolean;
     account: AccountSnapshot;
     open_trades: TradeRecord[];
 };
-
-export type TradeStats = {
-    total_trades: number;
-    open_trades: number;
-    closed_trades: number;
-
-    wins: number;
-    losses: number;
-    breakeven_trades: number;
-    win_rate: number;
-
-    total_pnl: number;
-    avg_pnl: number;
-    profit_factor: number;
-
-    total_r: number;
-    avg_r: number;
-    median_r: number;
-
-    avg_duration_sec: number;
-
-    avg_mfe_r: number;
-    avg_mae_r: number;
-
-    tp_count: number;
-    sl_count: number;
-    break_even_count: number;
-    lock_profit_count: number;
-    partial_exit_count: number;
-    time_stop_early_count: number;
-    time_stop_stale_count: number;
-    manual_close_count: number;
-    recovery_close_count: number;
-    force_close_count: number;
-    unknown_close_count: number;
-
-    partial_trades: number;
-
-    best_trade_r: number;
-    worst_trade_r: number;
-
-    open_pnl?: number;
-};
-
-export type TradeStatsResponse = {
-    stats: TradeStats;
-};
-
-type RequestInitLike = RequestInit | undefined;
 
 
 
@@ -248,6 +206,7 @@ function normalizeSettings(u: UserSettings | null): UserSettings | null {
     // normalize PascalCase -> snake_case
     if ("BETriggerR" in tc) {
         s.TrailingConfig = {
+            ...tc,
             be_trigger_r: tc.BETriggerR,
             be_offset_r: tc.BEOffsetR,
             lock_trigger_r: tc.LockTriggerR,
@@ -277,6 +236,10 @@ function normalizeSettings(u: UserSettings | null): UserSettings | null {
 }
 
 export const trade = {
+    closeTrade: (guid: string, body: { request_id: string; fraction: number }) =>
+        postJSON<ManualCloseResult>(`/api/trades/${encodeURIComponent(guid)}/close`, body),
+    closeStatus: (guid: string, requestId: string) =>
+        api<ManualCloseResult>(`/api/trades/${encodeURIComponent(guid)}/close/${encodeURIComponent(requestId)}`),
     disableBot: () => postEmpty<void>(`/api/bot/disable`),
     enableBot: (user: UserSettings) => postJSON<void>(`/api/bot/enable`, { user }),
 
@@ -285,10 +248,20 @@ export const trade = {
         const unwrapped = unwrapSettings(resp);
         return normalizeSettings(unwrapped);
     },
-    applySettings: (settings: UserSettings) => postJSON<void>(`/api/settings`, { user: settings.settings}),
+    applySettings: (settings: UserSettings) => postJSON<void>(`/api/settings`, settingsPayload(settings)),
 
     status: () => api<StatusResponse>('/api/status'),
     getRecentTrades: (limit = 20) =>
         api<RecentTradesResponse>(`/api/trades?limit=${limit}`),
     tradeStats: () => api<TradeStatsResponse>('/api/stats')
+};
+
+export type ManualCloseResult = {
+    request_id: string;
+    trade_guid: string;
+    fraction: number;
+    size: number;
+    order_id: string;
+    status: 'pending' | 'accepted' | 'unknown' | 'filled' | 'canceled' | 'rejected';
+    message?: string;
 };

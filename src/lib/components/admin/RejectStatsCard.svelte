@@ -85,10 +85,6 @@
 </Card>
 
 <style>
-    .inner-card {
-        margin-top: 12px;
-    }
-
     .error-text {
         font-size: 13px;
         color: var(--danger);

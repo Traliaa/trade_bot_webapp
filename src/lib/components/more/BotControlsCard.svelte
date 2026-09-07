@@ -74,18 +74,7 @@
 </Card>
 
 <style>
-    .rows {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-top: 12px;
-    }
-
     .actions {
-        margin-top: 12px;
-    }
-
-    .inner-card {
         margin-top: 12px;
     }
 
@@ -94,7 +83,4 @@
         color: #fca5a5;
     }
 
-    .profit {
-        color: #34d399;
-    }
 </style>

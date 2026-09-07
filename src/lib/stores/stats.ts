@@ -1,20 +1,22 @@
 import { writable } from 'svelte/store';
-import { trade, type TradeStats } from '$lib/api/tradeApi';
+import { adminTradeApi } from '$lib/api/adminTradeApi';
+import { mapBotTradeStats } from '$lib/mappers/botStats';
+import type { BotTradeStats } from '$lib/types/botStats';
 
-export type StatsState = {
+export type BotStatsState = {
     loading: boolean;
     error: string | null;
-    data: TradeStats | null;
+    data: BotTradeStats | null;
 };
 
-const initialState: StatsState = {
+const initialState: BotStatsState = {
     loading: false,
     error: null,
     data: null
 };
 
-function createStatsStore() {
-    const { subscribe, update, set } = writable<StatsState>(initialState);
+function createBotStatsStore() {
+    const { subscribe, set, update } = writable<BotStatsState>(initialState);
 
     return {
         subscribe,
@@ -29,22 +31,22 @@ function createStatsStore() {
             }));
 
             try {
-                const data = await trade.tradeStats();
+                const resp = await adminTradeApi.tradeStats();
 
                 update((state) => ({
                     ...state,
                     loading: false,
-                    data
+                    data: mapBotTradeStats(resp.stats)
                 }));
             } catch (e) {
                 update((state) => ({
                     ...state,
                     loading: false,
-                    error: e instanceof Error ? e.message : 'Не удалось загрузить статистику'
+                    error: e instanceof Error ? e.message : 'Не удалось загрузить статистику бота'
                 }));
             }
         }
     };
 }
 
-export const stats = createStatsStore();
+export const botStatsStore = createBotStatsStore();

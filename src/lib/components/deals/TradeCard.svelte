@@ -1,6 +1,6 @@
 <script lang="ts">
     import Card from '$lib/components/ui/Card.svelte';
-    import Button from '$lib/components/ui/Button.svelte';
+    import TradeCloseControls from './TradeCloseControls.svelte';
     import StatusBadge from '$lib/components/ui/StatusBadge.svelte';
     import type { UiTrade } from '$lib/types/trade';
 
@@ -75,7 +75,7 @@
     $: exitText = trade.exitPrice != null ? formatNum(trade.exitPrice, 4) : '—';
     $: slText = formatNum(trade.stopLoss, 4);
     $: tpText = formatNum(trade.takeProfit, 4);
-    $: sizeText = formatNum(trade.entrySize, 4);
+    $: sizeText = formatNum(trade.isOpen ? (trade.currentSize ?? trade.entrySize) : trade.entrySize, 4);
 </script>
 
 <Card>
@@ -156,10 +156,7 @@
     {/if}
 
     {#if resolvedMode === 'open'}
-        <div class="actions">
-            <Button variant="secondary" disabled>Частично</Button>
-            <Button variant="primary" disabled>Закрыть</Button>
-        </div>
+        <TradeCloseControls guid={trade.id} symbol={trade.symbol} side={trade.sideLabel} />
     {/if}
 </Card>
 
@@ -315,10 +312,4 @@
         background: rgba(251, 113, 133, 0.08);
     }
 
-    .actions {
-        margin-top: 12px;
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
-    }
 </style>

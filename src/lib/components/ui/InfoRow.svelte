@@ -7,8 +7,8 @@
 </script>
 
 <div class={`row ${compact ? 'compact' : ''} ${className}`}>
-  <span class="left">{label}</span>
-  <span class={`right right--${valueTone}`}>{value}</span>
+  <span class="left"><slot name="label">{label}</slot></span>
+  <span class={`right right--${valueTone}`}><slot name="value">{value}</slot></span>
 </div>
 
 <style>

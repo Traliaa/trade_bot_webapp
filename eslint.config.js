@@ -11,6 +11,7 @@ import svelteConfig from './svelte.config.js';
 const gitignorePath = path.resolve(import.meta.dirname, '.gitignore');
 
 export default defineConfig(
+	{ ignores: ['dist/**'] },
 	includeIgnoreFile(gitignorePath),
 	js.configs.recommended,
 	...ts.configs.recommended,
@@ -22,7 +23,8 @@ export default defineConfig(
 		rules: {
 			// typescript-eslint strongly recommend that you do not use the no-undef lint rule on TypeScript projects.
 			// see: https://typescript-eslint.io/troubleshooting/faqs/eslint/#i-get-errors-from-the-no-undef-rule-about-global-variables-not-being-defined-even-though-there-are-no-typescript-errors
-			'no-undef': 'off'
+			'no-undef': 'off',
+			'@typescript-eslint/no-explicit-any': 'warn'
 		}
 	},
 	{
@@ -34,6 +36,12 @@ export default defineConfig(
 				parser: ts.parser,
 				svelteConfig
 			}
+		},
+		rules: {
+				'svelte/no-reactive-reassign': 'off',
+				'svelte/no-reactive-literals': 'off',
+				'svelte/no-immutable-reactive-statements': 'off',
+				'svelte/require-each-key': 'warn'
 		}
 	}
 );

@@ -16,6 +16,7 @@ export type UiTrade = {
 
     entryPrice: number;
     entrySize: number;
+    currentSize?: number;
     stopLoss: number;
     takeProfit: number;
     leverage: number;

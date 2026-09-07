@@ -7,14 +7,11 @@
 
     import AdminStrategyPage from '$lib/components/admin/AdminStrategyPage.svelte';
     import BotControlsCard from './BotControlsCard.svelte';
-    import TestTradeCard from './TestTradeCard.svelte';
 
     import Card from '$lib/components/ui/Card.svelte';
     import Button from '$lib/components/ui/Button.svelte';
-    import InfoRow from '$lib/components/ui/InfoRow.svelte';
     import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
 
-    import { adminTradeApi, type TuneMode } from '$lib/api/adminTradeApi';
     import type { UserSettings } from '$lib/api/tradeApi';
 
     let loading = false;
@@ -22,7 +19,6 @@
     let saveError: string | null = null;
     let saveSuccess = false;
 
-    let tuneMode: TuneMode = 'off';
     let draftUser: UserSettings | null = null;
 
     $: isAdmin = isAdminUserId($tgUser?.id ?? null);
@@ -43,8 +39,6 @@
     $: user = $settingsStore.data;
     $: settings = draftUser?.settings;
     $: trading = settings?.TradingSettings;
-    $: features = settings?.FeatureFlags;
-    $: premium = Boolean(user?.Premium);
 
     async function loadPage() {
         loading = true;
@@ -55,10 +49,6 @@
         try {
             await settingsStore.load();
 
-            if (isAdmin) {
-                await loadTuneMode();
-            }
-
             draftUser = null;
         } catch (e) {
             error = e instanceof Error ? e.message : 'Не удалось загрузить раздел';
@@ -66,12 +56,6 @@
         } finally {
             loading = false;
         }
-    }
-
-    async function loadTuneMode() {
-        if (!isAdmin) return;
-        const resp = await adminTradeApi.tuneMode();
-        tuneMode = resp.mode ?? 'off';
     }
 
     async function saveApiKeys() {
@@ -103,26 +87,7 @@
         hapticLight();
     }
 
-    // const quickActions = [
-    //     ['API ключи OKX', 'Подключение биржи и проверка доступа', '🔑'],
-    //     ['Тестовая сделка', 'Проверка логики без реальной позиции', '🧪'],
-    //     ['Справка', 'Термины и подсказки', '📘'],
-    //     ['Премиум', premium ? 'Активен' : 'Не активен', '💎']
-    // ];
 </script>
-<Card variant="muted">
-    <div class="admin-head">
-        <div class="admin-badge">ADMIN</div>
-        <div>
-            <div class="title">Администрирование</div>
-            <div class="sub">Управление ботом и ручной тюн стратегии</div>
-        </div>
-    </div>
-</Card>
-
-
-
-<AdminStrategyPage />
 <div class="stack">
     <Card variant="muted">
         <div class="info-head">
@@ -134,10 +99,10 @@
         </div>
     </Card>
 
-    {#if error}
+    {#if error || $settingsStore.error}
         <Card variant="error">
             <div class="title">Ошибка</div>
-            <div class="sub">{error}</div>
+            <div class="sub">{error || $settingsStore.error}</div>
 
             <div class="top-gap">
                 <Button variant="primary" on:click={loadPage} disabled={loading}>
@@ -264,8 +229,6 @@
             </Card>
         {/if}
     </Card>
-        <TestTradeCard />
-
 </div>
 
 <style>
@@ -283,7 +246,6 @@
     }
 
     .icon,
-    .action-icon,
     .admin-badge {
         width: 32px;
         height: 32px;
@@ -310,14 +272,6 @@
         font-weight: 700;
     }
 
-    .action-icon {
-        width: 40px;
-        height: 40px;
-        font-size: 18px;
-        background: rgba(255, 255, 255, 0.04);
-        color: #fff;
-    }
-
     .title {
         font-size: 14px;
         font-weight: 600;
@@ -338,44 +292,6 @@
     .inline-actions {
         display: flex;
         gap: 8px;
-    }
-
-    .grid2 {
-        display: grid;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 8px;
-    }
-
-    .action-card {
-        text-align: left;
-        border-radius: 16px;
-        padding: 12px;
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-    }
-
-    .action-title {
-        margin-top: 10px;
-        font-size: 14px;
-        color: rgba(255, 255, 255, 0.9);
-    }
-
-    .action-sub {
-        margin-top: 4px;
-        font-size: 11px;
-        line-height: 1.4;
-        color: rgba(255, 255, 255, 0.45);
-    }
-
-    .rows {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        margin-top: 12px;
-    }
-
-    .rows.compact {
-        margin-top: 4px;
     }
 
     .form-grid {
@@ -406,10 +322,6 @@
 
     .field input::placeholder {
         color: rgba(255, 255, 255, 0.28);
-    }
-
-    .inner-card {
-        margin-top: 12px;
     }
 
     .empty {

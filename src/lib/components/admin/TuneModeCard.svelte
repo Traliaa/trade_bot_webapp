@@ -21,6 +21,10 @@
                 return 'Выключен';
             case 'safe':
                 return 'Осторожный';
+            case 'auto':
+                return 'Автоматический';
+            case 'manual':
+                return 'Ручной';
             case 'aggressive':
                 return 'Агрессивный';
             default:
@@ -130,10 +134,6 @@
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 8px;
-        margin-top: 12px;
-    }
-
-    .inner-card {
         margin-top: 12px;
     }
 

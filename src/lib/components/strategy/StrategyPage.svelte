@@ -3,7 +3,8 @@
     import { settingsStore } from '$lib/stores/settings';
     import type { UserSettings } from '$lib/api/tradeApi';
     import { hapticLight, hapticSuccess, hapticError, hapticSelection } from '$lib/telegram/haptics';
-    import SegmentedTabs, { type SegmentedTabItem } from '$lib/components/ui/SegmentedTabs.svelte';
+    import SegmentedTabs from '$lib/components/ui/SegmentedTabs.svelte';
+    import type { SegmentedTabItem } from '$lib/types/ui';
     import Card from '$lib/components/ui/Card.svelte';
     import Button from '$lib/components/ui/Button.svelte';
     import SectionHeader from '$lib/components/ui/SectionHeader.svelte';
@@ -13,9 +14,9 @@
 
     const strategyTabs: SegmentedTabItem[] = [
         { key: 'trading', label: 'Торговля' },
-        { key: 'trailing', label: 'Сопровождение' },
+        { key: 'trailing', label: 'Выходы' },
         { key: 'limits', label: 'Лимиты' },
-        { key: 'features', label: 'Доп. функции' }
+        { key: 'features', label: 'Функции' }
     ];
 
     let draftUser: UserSettings | null = null;
@@ -400,6 +401,7 @@
 
     .top-actions {
         display: flex;
+        flex-wrap: wrap;
         gap: 8px;
     }
 
@@ -421,12 +423,13 @@
 
     .form-grid {
         display: grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 10px;
         margin-top: 12px;
     }
 
     .field {
+        min-width: 0;
         display: flex;
         flex-direction: column;
         gap: 6px;
@@ -436,7 +439,10 @@
 
     .field input[type='text'],
     .field input[type='number'] {
-        height: 42px;
+        height: 44px;
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
         border-radius: 12px;
         border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
         background: rgba(255, 255, 255, 0.03);
@@ -446,6 +452,7 @@
     }
 
     .checkbox {
+        grid-column: 1 / -1;
         flex-direction: row;
         align-items: center;
         justify-content: space-between;
@@ -458,7 +465,7 @@
     .group {
         margin-top: 14px;
         border-radius: 16px;
-        padding: 12px;
+        padding: 10px;
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
     }
@@ -487,5 +494,13 @@
         border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
         font-size: 14px;
         color: var(--text-soft, rgba(255, 255, 255, 0.85));
+    }
+
+    @media (max-width: 480px) {
+        .topbar { flex-wrap: wrap; }
+        .top-actions { width: 100%; }
+        .top-actions :global(button) { flex: 1; }
+        .field { font-size: 12px; }
+        .field input { font-size: 16px; }
     }
 </style>

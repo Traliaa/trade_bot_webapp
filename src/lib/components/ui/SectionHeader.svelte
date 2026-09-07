@@ -19,6 +19,7 @@
 <style>
     .section-header {
         display: flex;
+        flex-wrap: wrap;
         justify-content: space-between;
         align-items: flex-start;
         gap: 12px;
@@ -39,6 +40,7 @@
 
     .actions {
         display: flex;
+        flex-wrap: wrap;
         gap: 8px;
         align-items: center;
     }

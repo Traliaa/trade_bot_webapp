@@ -142,10 +142,6 @@
         border-color: transparent;
     }
 
-    .inner-card {
-        margin-top: 12px;
-    }
-
     .top-gap {
         margin-top: 12px;
     }

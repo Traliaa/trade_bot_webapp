@@ -1,6 +1,7 @@
 <script lang="ts">
     import { tgUser } from "$lib/stores/telegram";
     import { goto } from "$app/navigation";
+    import { resolve } from "$app/paths";
 </script>
 
 <h1 class="text-lg font-semibold mb-3">Профиль</h1>
@@ -22,7 +23,7 @@
         <button
                 class="px-4 py-3 rounded-2xl text-sm font-semibold"
                 style="background: var(--tg-btn); color: var(--tg-btn-text);"
-                on:click={() => goto("/settings")}
+                on:click={() => goto(resolve("/settings"))}
         >
             Открыть настройки
         </button>

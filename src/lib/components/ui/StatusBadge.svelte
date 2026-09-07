@@ -1,5 +1,5 @@
 <script lang="ts">
-  export let tone: 'success' | 'danger' | 'neutral' = 'neutral';
+  export let tone: 'success' | 'danger' | 'neutral' | 'muted' = 'neutral';
 </script>
 
 <span class={`badge ${tone}`}>
@@ -28,7 +28,8 @@
         border-color: rgba(251, 113, 133, 0.18);
     }
 
-    .neutral {
+    .neutral,
+    .muted {
         color: var(--text-soft);
         background: rgba(255, 255, 255, 0.05);
         border-color: var(--border);

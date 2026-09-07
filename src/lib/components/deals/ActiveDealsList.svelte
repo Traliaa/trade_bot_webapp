@@ -74,7 +74,7 @@
             </div>
         {:else}
             <div class="list">
-                {#each uiTrades as trade}
+                {#each uiTrades as trade (trade.id)}
                     <TradeCard {trade} />
                 {/each}
             </div>

@@ -1,11 +1,9 @@
 <script lang="ts">
-    import { tgReady, tgUser } from "$lib/stores/telegram";
-    import { DEV_USER_ID } from "$lib/env/public";
+    import { onMount } from 'svelte';
     import {trade, type UserSettings} from "$lib/api/tradeApi";
 
 
 
-    $: userId = $tgUser?.id ?? (import.meta.env.DEV && DEV_USER_ID ? DEV_USER_ID : null);
 
     let loading = false;
     let saving = false;
@@ -19,13 +17,11 @@
     }
 
     async function load() {
-        if (!userId) return;
         loading = true;
         error = null;
         ok = null;
         try {
-            // GET /api/user/{id}/settings
-            model = await trade.getSettings(userId);
+            model = await trade.getSettings();
         } catch (e) {
             setErr(e);
             model = null;
@@ -35,15 +31,14 @@
     }
 
     async function save() {
-        if (!userId || !model) return;
+        if (!model) return;
         saving = true;
         error = null;
         ok = null;
         try {
-            // POST /api/user/{id}/settings
-            await trade.applySettings(userId, model.settings);
-            ok = "Сохранено";
+            await trade.applySettings(model);
             await load();
+            if (!error) ok = "Сохранено";
         } catch (e) {
             setErr(e);
         } finally {
@@ -51,19 +46,16 @@
         }
     }
 
-    $: if ($tgReady && userId) load();
+    onMount(load);
 </script>
 
 <h1 class="title">Настройки</h1>
 
-{#if !$tgReady}
-    <div class="state">Инициализация Telegram…</div>
-{:else if !userId}
-    <div class="err">Нет Telegram-пользователя</div>
-{:else if loading}
+{#if loading}
     <div class="state">Загружаю…</div>
 {:else if error}
     <div class="err">Ошибка: {error}</div>
+    <button class="btn" on:click={load}>Повторить</button>
 {:else if !model}
     <div class="state">Нет данных</div>
 {:else}
@@ -156,7 +148,7 @@
             <label class="field"><span>Lock offset (R)</span><input type="number" step="0.05" bind:value={model.settings.TrailingConfig.lock_offset_r} /></label>
 
             <label class="field"><span>Time stop bars</span><input type="number" step="1" bind:value={model.settings.TrailingConfig.time_stop_bars} /></label>
-            <label class="field"><span>Time stop min MFE (R)</span><input type="number" step="0.05" bind:value={model.settings.TrailingConfig.time_stop_min_mfe_r} /></label>
+            <label class="field"><span>Time stop min current (R)</span><input type="number" step="0.05" bind:value={model.settings.TrailingConfig.time_stop_min_current_r} /></label>
 
             <label class="toggle">
                 <input type="checkbox" bind:checked={model.settings.TrailingConfig.partial_enabled} />

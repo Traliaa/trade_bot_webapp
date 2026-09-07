@@ -61,3 +61,7 @@ input::placeholder,
 textarea::placeholder {
     color: var(--text-muted);
 }
+
+.inner-card {
+    margin-top: 12px;
+}

@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { goto } from '$app/navigation';
+    import { resolve } from '$app/paths';
 
     import { settingsStore } from '$lib/stores/settings';
     import { historyStore } from '$lib/stores/history';
@@ -70,16 +71,6 @@
         return `${sign}${formatNum(v)}`;
     }
 
-    function weekdayLabel(value?: string | null): string {
-        if (!value) return '—';
-
-        const d = new Date(value);
-        if (Number.isNaN(d.getTime())) return '—';
-
-        const raw = d.toLocaleDateString('ru-RU', { weekday: 'short' }).replace('.', '');
-        return raw.charAt(0).toUpperCase() + raw.slice(1, 2);
-    }
-
     function formatTradeTime(value?: string | null): string {
         if (!value) return '';
 
@@ -94,17 +85,10 @@
         });
     }
 
-    function lastSignalText(): string {
-        const first = $historyStore.trades?.[0];
-        if (!first) return 'Нет данных';
-
-        const time = first.exitAt ?? first.entryAt ?? '';
-        const formattedTime = formatTradeTime(time);
-
-        return formattedTime
-            ? `${first.symbol} · ${first.sideLabel} · ${formattedTime}`
-            : `${first.symbol} · ${first.sideLabel}`;
-    }
+    $: signal = $historyStore.lastSignal;
+    $: signalText = signal
+        ? `${signal.symbol} · ${signal.side.toUpperCase()} · ${formatTradeTime(signal.created_at)}`
+        : $historyStore.loading ? 'Загружаем…' : 'С запуска сервиса сигналов нет';
 
     $: account = $historyStore.account ?? null;
     $: statsData = $historyStore.stats ?? null;
@@ -254,8 +238,8 @@
         <div class="rows">
             <InfoRow
                     label="Последний сигнал"
-                    value={lastSignalText()}
-                    valueTone={lastSignalText() === 'Нет данных' ? 'muted' : 'default'}
+                    value={signalText}
+                    valueTone={signal ? 'default' : 'muted'}
             />
             <InfoRow
                     label="Состояние сервиса"
@@ -310,7 +294,7 @@
                 subtitle={`Сейчас открыто ${openTrades.length}`}
         >
             <svelte:fragment slot="actions">
-                <Button variant="ghost" on:click={() => goto('/deals')}>
+                <Button variant="ghost" on:click={() => goto(resolve('/deals'))}>
                     Все
                 </Button>
             </svelte:fragment>
@@ -508,112 +492,5 @@
         background: rgba(37,99,235,0.22);
         border-color: rgba(96,165,250,0.28);
         color: #60a5fa;
-    }
-    .bars.split-bars {
-        display: flex;
-        align-items: stretch;
-        gap: 8px;
-        margin-top: 12px;
-        padding: 12px;
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.03);
-        min-height: 132px;
-    }
-
-    .bar-col {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .bar-half {
-        width: 100%;
-        height: 42px;
-        display: flex;
-        justify-content: center;
-    }
-
-    .bar-top {
-        align-items: end;
-    }
-
-    .bar-bottom {
-        align-items: start;
-    }
-
-    .bar-midline {
-        width: 100%;
-        height: 1px;
-        background: rgba(255, 255, 255, 0.1);
-        margin: 2px 0 6px 0;
-    }
-
-    .bar-fill {
-        width: 70%;
-        min-height: 10px;
-        border-radius: 8px;
-    }
-
-    .bar-positive {
-        background: rgba(52, 211, 153, 0.9);
-    }
-
-    .bar-negative {
-        background: rgba(251, 113, 133, 0.9);
-    }
-
-    .bar-label {
-        margin-top: 8px;
-        font-size: 10px;
-        color: rgba(255, 255, 255, 0.35);
-    }
-    .pnl-strip {
-        margin-top: 12px;
-        display: grid;
-        grid-template-columns: repeat(7, minmax(0, 1fr));
-        gap: 8px;
-    }
-
-    .pnl-chip {
-        min-height: 72px;
-        padding: 10px 8px;
-        border-radius: 12px;
-        border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        align-items: center;
-        text-align: center;
-    }
-
-    .pnl-chip-positive {
-        background: rgba(52, 211, 153, 0.10);
-        border-color: rgba(52, 211, 153, 0.22);
-    }
-
-    .pnl-chip-negative {
-        background: rgba(251, 113, 133, 0.10);
-        border-color: rgba(251, 113, 133, 0.22);
-    }
-
-    .pnl-chip-value {
-        font-size: 13px;
-        font-weight: 700;
-        line-height: 1.2;
-        color: var(--text-main, #e5e7eb);
-        word-break: break-word;
-    }
-
-    .pnl-chip-label {
-        margin-top: 8px;
-        font-size: 10px;
-        color: rgba(255, 255, 255, 0.45);
-    }
-
-    @media (max-width: 420px) {
-        .pnl-strip {
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
     }
 </style>

@@ -1,5 +1,5 @@
 <script lang="ts">
-
+    import type { SegmentedTabItem } from '$lib/types/ui';
 
     export let value = '';
     export let items: SegmentedTabItem[] = [];
@@ -11,12 +11,13 @@
 
 <div
         class={`tabs ${size}`}
-        style={`grid-template-columns: repeat(${gridColumns}, 1fr);`}
+        style={`grid-template-columns: repeat(${gridColumns}, minmax(0, 1fr));`}
 >
     {#each items as item}
         <button
                 type="button"
                 class:active={value === item.key}
+                aria-pressed={value === item.key}
                 on:click={() => (value = item.key)}
         >
             {item.label}
@@ -39,6 +40,9 @@
     }
 
     .tabs button {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        min-height: 44px;
         border: 0;
         border-radius: 12px;
         background: transparent;

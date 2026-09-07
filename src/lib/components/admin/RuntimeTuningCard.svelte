@@ -55,10 +55,6 @@
         color: var(--text-main);
     }
 
-    .inner-card {
-        margin-top: 12px;
-    }
-
     .empty {
         font-size: 13px;
         color: var(--text-muted);
