@@ -1,5 +1,6 @@
-export function normalizeTuneMode(mode: string | number): string {
-    return typeof mode === 'number' ? (['off', 'safe', 'auto', 'manual'][mode] ?? 'unknown') : mode.toLowerCase();
+export function normalizeTuneMode(mode: unknown): string {
+    if (typeof mode === 'number') return ['off', 'safe', 'auto', 'manual'][mode] ?? 'unknown';
+    return typeof mode === 'string' ? mode.toLowerCase() : 'unknown';
 }
 
 export function tuneDecisionMessage(result: { changed: boolean; decision: unknown }): string {
@@ -20,13 +21,24 @@ export function tuneDecisionMessage(result: { changed: boolean; decision: unknow
 }
 
 export function normalizeRuntime(raw: Record<string, unknown>) {
+    const number = (key: string, alias: string) => {
+        const value = raw[key] ?? raw[alias];
+        return value != null && value !== '' && Number.isFinite(Number(value)) ? Number(value) : undefined;
+    };
     return {
         ...raw,
-        breakoutPct: Number(raw.BreakoutPct ?? raw.breakoutPct ?? 0),
-        minChannelPct: Number(raw.MinChannelPct ?? raw.minChannelPct ?? 0),
-        minBodyPct: Number(raw.MinBodyPct ?? raw.minBodyPct ?? 0),
-        closeUpMin: Number(raw.CloseUpMin ?? raw.closeUpMin ?? 0),
-        closeDnMax: Number(raw.CloseDnMax ?? raw.closeDnMax ?? 0)
+        breakoutPct: number('BreakoutPct', 'breakoutPct'),
+        minChannelPct: number('MinChannelPct', 'minChannelPct'),
+        minBodyPct: number('MinBodyPct', 'minBodyPct'),
+        closeUpMin: number('CloseUpMin', 'closeUpMin'),
+        closeDnMax: number('CloseDnMax', 'closeDnMax'),
+        v3MinConfirmScore: number('V3MinConfirmScore', 'v3MinConfirmScore'),
+        v3RetestTolerancePct: number('V3RetestTolerancePct', 'v3RetestTolerancePct'),
+        v3ImpulseBodyMinPct: number('V3ImpulseBodyMinPct', 'v3ImpulseBodyMinPct'),
+        v3CompressionThresholdPct: number('V3CompressionThresholdPct', 'v3CompressionThresholdPct'),
+        v3StrongCloseMin: number('V3StrongCloseMin', 'v3StrongCloseMin'),
+        v3StrongCloseMax: number('V3StrongCloseMax', 'v3StrongCloseMax'),
+        v3VolumeMinRatio: number('V3VolumeMinRatio', 'v3VolumeMinRatio')
     };
 }
 

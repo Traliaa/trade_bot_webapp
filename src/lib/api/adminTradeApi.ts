@@ -7,13 +7,7 @@ export type ISODateTime = string;
 
 export type TuneMode = "off" | "safe" | "aggressive" | string;
 export type TuneDecision = unknown;
-export type RuntimeTuning = {
-    breakoutPct?: number;
-    minChannelPct?: number;
-    minBodyPct?: number;
-    closeUpMin?: number;
-    closeDnMax?: number;
-};
+export type RuntimeTuning = ReturnType<typeof normalizeRuntime>;
 export type RejectSnapshot = {
     total?: number;
     from?: ISODateTime;

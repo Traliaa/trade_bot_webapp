@@ -38,6 +38,13 @@
         draftUser = cloneUser($settingsStore.data);
     }
 
+    // Form bindings invalidate these aliases, not the parent draft object in Svelte.
+    $: dirty = Boolean(draftUser && JSON.stringify([trading, trailing, features]) !== JSON.stringify([
+        $settingsStore.data?.settings.TradingSettings,
+        $settingsStore.data?.settings.TrailingConfig,
+        $settingsStore.data?.settings.FeatureFlags
+    ]));
+    $: if (dirty) saveSuccess = false;
     $: settings = draftUser?.settings;
     $: trading = settings?.TradingSettings;
     $: trailing = settings?.TrailingConfig;
@@ -101,22 +108,22 @@
     <div class="topbar">
         <div>
             <div class="page-title">Стратегия</div>
-            <div class="page-sub">Настройки торговли и сопровождения</div>
+            <div class="page-sub">{dirty ? 'Есть несохранённые изменения' : 'Параметры входа и выхода'}</div>
         </div>
 
         <div class="top-actions">
             <Button
                     variant="ghost"
                     on:click={resetDraft}
-                    disabled={$settingsStore.loading || $settingsStore.saving || !draftUser}
+                    disabled={$settingsStore.loading || $settingsStore.saving || !draftUser || !dirty}
             >
-                Сбросить
+                Отменить
             </Button>
 
             <Button
                     variant="primary"
                     on:click={save}
-                    disabled={$settingsStore.loading || $settingsStore.saving || !draftUser}
+                    disabled={$settingsStore.loading || $settingsStore.saving || !draftUser || !dirty}
             >
                 {$settingsStore.saving ? 'Сохраняем...' : 'Сохранить'}
             </Button>
@@ -144,6 +151,7 @@
         </Card>
     {/if}
 
+    <fieldset class="settings-fields" disabled={$settingsStore.saving}>
     {#if $settingsStore.error}
         <Card variant="error">
             <div class="title">Ошибка загрузки</div>
@@ -166,8 +174,8 @@
     {:else if tab === 'trading'}
         <Card>
             <SectionHeader
-                    title="Базовые параметры торговли"
-                    subtitle="Размер позиции, риск, стоп, тейк и плечо"
+                    title="Вход в сделку"
+                    subtitle="Объём, риск и цели позиции"
             />
 
             <div class="form-grid">
@@ -243,41 +251,41 @@
         <Card>
             <SectionHeader
                     title="Сопровождение позиции"
-                    subtitle="BE, Lock, time stop, early exit, partial"
+                    subtitle="Откройте нужный блок для настройки"
             />
 
-            <div class="group">
-                <div class="group-title">Безубыток (BE)</div>
+            <details class="group">
+                <summary class="group-title">Безубыток (BE)</summary>
                 <div class="form-grid">
                     <label class="field">
-                        <span>BE trigger, R</span>
+                        <span>Активация, R</span>
                         <input type="number" step="0.01" bind:value={trailing.be_trigger_r} />
                     </label>
 
                     <label class="field">
-                        <span>BE offset, R</span>
+                        <span>Смещение, R</span>
                         <input type="number" step="0.01" bind:value={trailing.be_offset_r} />
                     </label>
                 </div>
-            </div>
+            </details>
 
-            <div class="group">
-                <div class="group-title">Фиксация прибыли (Lock)</div>
+            <details class="group">
+                <summary class="group-title">Фиксация прибыли (Lock)</summary>
                 <div class="form-grid">
                     <label class="field">
-                        <span>Lock trigger, R</span>
+                        <span>Активация, R</span>
                         <input type="number" step="0.01" bind:value={trailing.lock_trigger_r} />
                     </label>
 
                     <label class="field">
-                        <span>Lock offset, R</span>
+                        <span>Смещение, R</span>
                         <input type="number" step="0.01" bind:value={trailing.lock_offset_r} />
                     </label>
                 </div>
-            </div>
+            </details>
 
-            <div class="group">
-                <div class="group-title">Выход по времени</div>
+            <details class="group">
+                <summary class="group-title">Выход по времени</summary>
                 <div class="form-grid">
                     <label class="field">
                         <span>Свечей ожидания</span>
@@ -289,10 +297,10 @@
                         <input type="number" step="0.01" bind:value={trailing.time_stop_min_current_r} />
                     </label>
                 </div>
-            </div>
+            </details>
 
-            <div class="group">
-                <div class="group-title">Ранний выход</div>
+            <details class="group">
+                <summary class="group-title">Ранний выход</summary>
                 <div class="form-grid">
                     <label class="field">
                         <span>Ранних свечей</span>
@@ -304,10 +312,10 @@
                         <input type="number" step="0.01" bind:value={trailing.early_time_stop_min_mfe_r} />
                     </label>
                 </div>
-            </div>
+            </details>
 
-            <div class="group">
-                <div class="group-title">Частичная фиксация</div>
+            <details class="group">
+                <summary class="group-title">Частичная фиксация</summary>
                 <div class="form-grid">
                     <label class="field checkbox">
                         <span>Включено</span>
@@ -334,7 +342,7 @@
                         />
                     </label>
                 </div>
-            </div>
+            </details>
         </Card>
     {:else}
         <Card>
@@ -371,6 +379,7 @@
             </div>
         </Card>
     {/if}
+    </fieldset>
 </div>
 
 <style>
@@ -380,7 +389,14 @@
         gap: 12px;
     }
 
+    .settings-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+
     .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        padding: 8px 0;
+        background: var(--bg, #030917);
         display: flex;
         justify-content: space-between;
         align-items: flex-start;
@@ -471,6 +487,9 @@
     }
 
     .group-title {
+        cursor: pointer;
+        min-height: 32px;
+        align-content: center;
         font-size: 14px;
         font-weight: 600;
         color: var(--text-main, #fff);

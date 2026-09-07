@@ -220,7 +220,7 @@
     <Card>
         <SectionHeader
                 title="Статус и сигнал"
-                subtitle="Краткое состояние бота прямо на главном экране"
+                subtitle="Подключение и активность стратегии"
         >
             <svelte:fragment slot="actions">
                 <div class="header-actions">
@@ -333,12 +333,13 @@
 
     .grid2 {
         display: grid;
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
     }
 
     .grid2 :global(.ui-card) {
-        min-height: 104px;
+        padding: 12px;
+        min-width: 0;
     }
 
     .header-actions {
@@ -472,15 +473,15 @@
 
     .pnl-switch {
         margin-top: 8px;
-        display: inline-flex;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 4px;
-        flex-wrap: wrap;
     }
 
     .pnl-switch button {
         font-size: 10px;
         line-height: 1;
-        padding: 5px 8px;
+        padding: 7px 2px;
         border-radius: 8px;
         border: 1px solid rgba(255,255,255,0.08);
         background: rgba(255,255,255,0.04);

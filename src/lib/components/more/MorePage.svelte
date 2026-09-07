@@ -1,8 +1,7 @@
 <script lang="ts">
     import { onMount } from 'svelte';
     import { settingsStore } from '$lib/stores/settings';
-    import { tgUser } from '$lib/stores/telegram';
-    import { isAdminUserId } from '$lib/auth/admin';
+    import { adminAccess } from '$lib/auth/admin';
     import { hapticLight, hapticSuccess, hapticError } from '$lib/telegram/haptics';
 
     import AdminStrategyPage from '$lib/components/admin/AdminStrategyPage.svelte';
@@ -21,7 +20,7 @@
 
     let draftUser: UserSettings | null = null;
 
-    $: isAdmin = isAdminUserId($tgUser?.id ?? null);
+    $: isAdmin = $adminAccess;
 
     function cloneUser<T>(value: T): T {
         if (typeof structuredClone !== 'undefined') return structuredClone(value);
